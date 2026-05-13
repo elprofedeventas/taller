@@ -6,8 +6,10 @@ import { exportToExcel } from '../services/excel';
 import { useAuth } from '../hooks/useAuth';
 import styles from './ExcelExporter.module.css';
 
-export function ExcelExporter({ sources, filenamePrefix = 'respaldo' }) {
-  const { role } = useAuth();
+export function ExcelExporter({ sources, filenamePrefix = 'respaldo', auth }) {
+  // Si se pasa auth como prop, usar ese rol. Si no, fallback al hook.
+  const fallback = useAuth();
+  const role = auth ? auth.role : fallback.role;
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState('mes-actual');
 

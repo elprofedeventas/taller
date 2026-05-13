@@ -6,6 +6,43 @@ import { db } from './firestore';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 /**
+ * Las 5 plantillas estandar de TALLER. Las variables disponibles
+ * dependen del contexto donde se monta el boton WhatsApp; las que
+ * no se rellenan quedan vacias en el mensaje.
+ */
+export const WHATSAPP_TEMPLATES = [
+  {
+    id: 'confirmacion_recepcion',
+    name: 'Confirmacion de recepcion',
+    template: 'Hola {clientName}, recibimos tu vehiculo {vehiclePlaca} ({vehicleMarca} {vehicleModelo}). Te avisamos al avanzar.'
+  },
+  {
+    id: 'cotizacion_lista',
+    name: 'Cotizacion lista',
+    template: 'Hola {clientName}, terminamos el diagnostico de tu {vehicleMarca} {vehicleModelo} placa {vehiclePlaca}. El presupuesto es ${totalGeneral}. Aprobamos?'
+  },
+  {
+    id: 'vehiculo_listo',
+    name: 'Vehiculo listo',
+    template: 'Hola {clientName}, tu {vehicleMarca} {vehicleModelo} placa {vehiclePlaca} esta listo. Total ${totalGeneral}. Te esperamos para que lo recojas.'
+  },
+  {
+    id: 'recordatorio_mantenimiento',
+    name: 'Recordatorio de mantenimiento',
+    template: 'Hola {clientName}, tu {vehicleMarca} {vehicleModelo} placa {vehiclePlaca} ya cumplio el periodo de mantenimiento. Coordinamos tu proxima cita?'
+  },
+  {
+    id: 'gracias_pago',
+    name: 'Gracias por el pago',
+    template: 'Hola {clientName}, gracias por tu pago de ${monto} por el trabajo en {vehiclePlaca}. Estamos a tu orden.'
+  }
+];
+
+export function templatesByIds(ids) {
+  return WHATSAPP_TEMPLATES.filter(t => ids.includes(t.id));
+}
+
+/**
  * Limpia un numero ecuatoriano y devuelve formato internacional.
  * Acepta: +593 99 999 9999, 099-999-9999, 0999999999, 593999999999.
  * Devuelve: 593999999999

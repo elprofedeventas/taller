@@ -17,7 +17,7 @@
 
 import { db } from './firestore';
 import {
-  collection, getDocs,
+  collection, doc, getDocs, updateDoc,
   serverTimestamp, addDoc
 } from 'firebase/firestore';
 
@@ -128,6 +128,26 @@ export async function createUser(session, { name, pin, role, locationId }) {
   }));
 
   await logEvent(session, 'CREATE_USER', 'users');
+}
+
+/**
+ * Cambia el PIN de un usuario regenerando salt+hash.
+ * Solo el owner puede invocar esta funcion.
+ */
+export async function changeUserPin(session, userId, newPin) {
+  if (session.role !== 'owner') {
+    throw new Error('Solo el owner puede cambiar PINs');
+  }
+  if (!/^\d{4}$/.test(newPin)) {
+    throw new Error('PIN invalido: deben ser 4 digitos');
+  }
+  const salt = generateSalt();
+  const pinHash = await hashPin(newPin, salt);
+  await updateDoc(doc(db, 'users', userId), withActor(session, {
+    pinSalt: salt,
+    pinHash
+  }));
+  await logEvent(session, 'CHANGE_PIN', 'users');
 }
 
 export function withActor(session, data) {

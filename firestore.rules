@@ -165,7 +165,9 @@ service cloud.firestore {
                                     request.resource.data.actorRole)
                     && hasRole(['recepcionista', 'manager', 'owner'])
                     && request.resource.data.keys().hasAll(
-                         ['name', 'phone', 'firstVisitAt',
+                         ['name', 'nameLower',
+                          'nameTokens', 'nameTokensPrefixes',
+                          'phone', 'firstVisitAt',
                           'totalVisits', 'totalSpent',
                           'createdAt', 'createdBy']
                        )

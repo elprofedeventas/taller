@@ -7,3 +7,26 @@ html, body, #root {
 #root {
   min-height: 100vh;
 }
+
+/* Reglas para impresion del Comprobante. Cualquier elemento con
+   data-printable se vuelve la unica area visible al imprimir. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-printable], [data-printable] * {
+    visibility: visible;
+  }
+  [data-printable] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: white;
+    color: black;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

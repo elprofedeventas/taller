@@ -1,0 +1,356 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 640px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.resetButton {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.resetButton:hover:not(:disabled) {
+  background: var(--bg-active);
+}
+
+.resetButton:disabled {
+  opacity: 0.5;
+}
+
+.section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.subtitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.searchForm {
+  display: flex;
+  gap: 8px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--primary-light);
+  border-color: var(--primary);
+}
+
+.searchInput:disabled {
+  opacity: 0.5;
+}
+
+.searchButton {
+  background: var(--primary);
+  color: var(--bg-surface);
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.searchButton:disabled {
+  opacity: 0.5;
+}
+
+.entityCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-active);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.entityMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.entityLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.entityName {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.entityMeta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.placa {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: 0.5px;
+}
+
+.modeloLine {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.changeButton {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.changeButton:hover:not(:disabled) {
+  background: var(--bg-surface);
+}
+
+.vehiclesPick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vehiclesPickHint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.vehiclesList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vehicleOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-family: inherit;
+}
+
+.vehicleOption:hover:not(:disabled) {
+  background: var(--bg-active);
+}
+
+.vehicleOption:disabled {
+  opacity: 0.5;
+}
+
+.addVehicleButton {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.addVehicleButton:hover:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.emptyVehicles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emptyVehicles p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.noMatch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.noMatch p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.subform {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.subformTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.input {
+  padding: 9px 11px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
+.input:focus {
+  outline: 2px solid var(--primary-light);
+  border-color: var(--primary);
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.half {
+  flex: 1;
+}
+
+.subformSubmit {
+  align-self: flex-start;
+  background: var(--primary);
+  color: var(--bg-surface);
+  border: none;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.subformSubmit:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.subformSubmit:disabled {
+  opacity: 0.5;
+}
+
+.textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  resize: vertical;
+  min-height: 100px;
+}
+
+.textarea:focus {
+  outline: 2px solid var(--primary-light);
+  border-color: var(--primary);
+}
+
+.textarea:disabled {
+  opacity: 0.5;
+  background: var(--bg-app);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 14px;
+  margin: 0 0 8px 0;
+}
+
+.submitOT {
+  background: var(--primary);
+  color: var(--bg-surface);
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.submitOT:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.submitOT:disabled {
+  opacity: 0.5;
+}

@@ -8,8 +8,11 @@ import { db } from '../services/firestore';
 import { useAuth } from '../hooks/useAuth';
 import styles from './HistoricoViewer.module.css';
 
-export function HistoricoViewer({ entidad, columnas, onExport }) {
-  const { role } = useAuth();
+export function HistoricoViewer({ entidad, columnas, onExport, auth }) {
+  // Si se pasa auth como prop (recomendado mientras useAuth no comparta
+  // estado, ver PENDIENTES.md), usar ese. Si no, fallback al hook.
+  const fallback = useAuth();
+  const role = auth ? auth.role : fallback.role;
   const [mesesDisponibles, setMesesDisponibles] = useState([]);
   const [mesSeleccionado, setMesSeleccionado] = useState(null);
   const [docs, setDocs] = useState([]);

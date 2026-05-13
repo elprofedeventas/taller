@@ -9,9 +9,13 @@ export function WhatsAppButton({
   templates = [],
   variables = {},
   context = {},
-  buttonLabel = 'WhatsApp'
+  buttonLabel = 'WhatsApp',
+  auth
 }) {
-  const { session } = useAuth();
+  // Si se pasa auth como prop (recomendado mientras useAuth no comparta
+  // estado, ver PENDIENTES.md), usar esa sesion. Si no, fallback al hook.
+  const fallback = useAuth();
+  const session = auth ? auth.session : fallback.session;
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(templates[0]?.id || null);
   const [editedMessage, setEditedMessage] = useState('');

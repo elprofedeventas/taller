@@ -30,7 +30,13 @@ export function usePaginatedQuery({ baseQuery, pageSize = 20 }) {
       const snap = await getDocs(q);
       const newDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      setDocs(prev => [...prev, ...newDocs]);
+      // Dedup por id: protege contra reentrada del effect inicial
+      // en React.StrictMode (dev), donde el useEffect dispara dos veces
+      // y agregaria la misma pagina al state local.
+      setDocs(prev => {
+        const seen = new Set(prev.map(d => d.id));
+        return [...prev, ...newDocs.filter(d => !seen.has(d.id))];
+      });
       setLastDoc(snap.docs[snap.docs.length - 1]);
       setHasMore(snap.size === pageSize);
     } finally {

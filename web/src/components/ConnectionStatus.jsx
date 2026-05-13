@@ -11,7 +11,7 @@ export function ConnectionStatus({ pendingCount = 0, onForceSync }) {
 
   if (!isOnline) {
     return (
-      <div className={${styles.bar} ${styles.offline}}>
+      <div className={`${styles.bar} ${styles.offline}`}>
         Sin conexion
         {pendingCount > 0 && (
           <span className={styles.count}>
@@ -23,7 +23,7 @@ export function ConnectionStatus({ pendingCount = 0, onForceSync }) {
   }
 
   return (
-    <div className={${styles.bar} ${styles.syncing}}>
+    <div className={`${styles.bar} ${styles.syncing}`}>
       Sincronizando
       <span className={styles.count}>
         - {pendingCount} {pendingCount === 1 ? 'cambio' : 'cambios'}

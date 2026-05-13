@@ -1,0 +1,195 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.toolbarButton {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.toolbarButton:hover {
+  background: var(--bg-active);
+}
+
+.toolbarButton:first-child {
+  background: var(--primary);
+  color: var(--bg-surface);
+  border-color: var(--primary);
+}
+
+.toolbarButton:first-child:hover {
+  background: var(--primary-hover);
+}
+
+.back {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  align-self: flex-start;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.printArea {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 36px 40px;
+  font-size: 13px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.printHeader {
+  text-align: center;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 14px;
+}
+
+.tallerName {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text-primary);
+}
+
+.tallerInfo {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+
+.docMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.fiscalNote {
+  background: var(--bg-app);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.blockTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 4px;
+}
+
+.subBlockTitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 6px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.kvLabel {
+  color: var(--text-secondary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.numCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.subtotal {
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.totalBlock {
+  border-top: 2px solid var(--border-medium);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.totalLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.totalValue {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.footer {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}

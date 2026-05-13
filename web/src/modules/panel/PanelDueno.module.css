@@ -1,0 +1,132 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.periodLabel {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+
+.historicoButton {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.historicoButton:hover {
+  background: var(--bg-active);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 14px;
+  margin: 0;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.kpiCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 140px;
+}
+
+.kpiLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.kpiBig {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1;
+  margin: 4px 0;
+}
+
+.kpiMedium {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  line-height: 1;
+}
+
+.kpiSub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.splitRow {
+  display: flex;
+  gap: 24px;
+  margin: 6px 0;
+}
+
+.splitRow > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mechanicList {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  counter-reset: mech;
+}
+
+.mechanicRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--text-primary);
+  counter-increment: mech;
+}
+
+.mechanicRow::before {
+  content: counter(mech) ". ";
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.mechanicCount {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
