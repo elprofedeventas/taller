@@ -1,0 +1,63 @@
+/* TALLER - sistema de diseno base
+ * Paleta y tipografia segun TALLER.md seccion 7.
+ * Inter cargada via CDN desde index.html.
+ */
+
+:root {
+  /* Backgrounds */
+  --bg-app:          #FAFAF7;
+  --bg-surface:      #FFFFFF;
+  --bg-active:       #EFF6FF;
+
+  /* Text */
+  --text-primary:    #1A1F2E;
+  --text-secondary:  #6B7280;
+  --text-disabled:   #9CA3AF;
+
+  /* Borders */
+  --border-light:    #E5E7EB;
+  --border-medium:   #D1D5DB;
+
+  /* Primary TALLER: azul oscuro profesional */
+  --primary:         #1E3A8A;
+  --primary-hover:   #1E40AF;
+  --primary-light:   #DBEAFE;
+
+  /* Status */
+  --success:         #059669;
+  --warning:         #D97706;
+  --danger:          #DC2626;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Radios */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}

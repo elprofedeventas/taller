@@ -1,0 +1,318 @@
+rules_version = '2';
+
+// =============================================================
+// FIRESTORE RULES - TALLER (Nueva Orbita v2.2)
+// Auth: PIN propio sobre coleccion users, sin Cloud Functions.
+// Compromiso aceptado: seguridad por capas, no criptografica.
+//
+// Personalizado para TALLER:
+//   - 4 roles V1: owner, manager, recepcionista, mechanic
+//   - Colecciones: clients, vehicles, workOrders, payments
+//   - Archivo: workOrders y payments (rotacion mensual)
+//
+// NOTA SOBRE READS: en el patron Nueva Orbita sin Firebase Auth,
+// los reads no pueden enforce role-checks (no hay request.auth ni
+// request.resource.data disponible). Las reglas enforce writes;
+// reads son libres. Filtros como "mecanico solo ve sus OTs" o
+// "solo manager/owner ven _whatsapp_events" viven en queries JS
+// y en UI gating del lado cliente.
+//
+// CAMPOS FINANCIEROS en workOrders: totalLabor, totalParts,
+// totalGeneral. Recepcionista y mecanico los preservan; solo
+// manager/owner los modifican (cierre del cobro).
+//
+// TRANSICIONES DE STATUS en workOrders:
+//   - manager/owner: cualquier transicion.
+//   - recepcionista: todas menos a 'cancelado'.
+//   - mechanic: solo entre diagnostico/aprobacion/proceso/listo
+//              (no puede ir a 'entregado' ni 'cancelado').
+// =============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // HELPERS reusables
+    // =========================================================
+    function hasActor() {
+      return request.resource.data.keys().hasAll(['actorId', 'actorRole']);
+    }
+
+    function actorExists(actorId) {
+      return exists(/databases/$(database)/documents/users/$(actorId));
+    }
+
+    function actorRoleMatches(actorId, declaredRole) {
+      return get(/databases/$(database)/documents/users/$(actorId)).data.role == declaredRole;
+    }
+
+    function actorIsActive(actorId) {
+      return get(/databases/$(database)/documents/users/$(actorId)).data.active == true;
+    }
+
+    function isValidActor(actorId, actorRole) {
+      return actorExists(actorId)
+          && actorIsActive(actorId)
+          && actorRoleMatches(actorId, actorRole);
+    }
+
+    function hasRole(allowedRoles) {
+      return request.resource.data.actorRole in allowedRoles;
+    }
+
+    function hasServerTimestamp(field) {
+      return request.resource.data[field] == request.time;
+    }
+
+    function notTooOld(maxHours) {
+      return resource.data.createdAt > request.time - duration.value(maxHours, 'h');
+    }
+
+    function preservesField(fieldName) {
+      return request.resource.data[fieldName] == resource.data[fieldName];
+    }
+
+    // =========================================================
+    // USERS
+    // v2.2: lectura libre (necesaria para deteccion de pausa en login)
+    // =========================================================
+    match /users/{userId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['pinHash', 'pinSalt', 'name', 'role', 'active', 'createdAt']
+                       );
+
+      allow update: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && (
+                      hasRole(['owner'])
+                      ||
+                      (request.resource.data.actorId == userId
+                       && preservesField('role')
+                       && preservesField('active')
+                       && preservesField('locationId'))
+                    );
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // AUDIT LOG - append-only desde cliente
+    // =========================================================
+    match /_audit/{eventId} {
+      allow read: if false;
+      allow create: if request.resource.data.keys().hasAll(
+                         ['actorId', 'action', 'collection', 'timestamp']
+                       )
+                    && hasServerTimestamp('timestamp');
+      allow update, delete: if false;
+    }
+
+    // =========================================================
+    // WHATSAPP EVENTS (v2.2+) - append-only desde cliente
+    // Read libre: el role-gating de "solo manager/owner consultan
+    // este log" vive en la UI (pantalla solo accesible desde panel).
+    // Compromiso v2.2: seguridad por capas, no criptografica.
+    // =========================================================
+    match /_whatsapp_events/{eventId} {
+      allow read: if true;
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasServerTimestamp('sentAt');
+      allow update, delete: if false;
+    }
+
+    // =========================================================
+    // ARCHIVE INDEX (v2.2+) - solo lectura, escritura via Admin SDK
+    // =========================================================
+    match /_archive_index/{indexId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    // =========================================================
+    // CONFIG
+    // =========================================================
+    match /config/{key} {
+      allow read: if true;
+      allow write: if hasActor()
+                   && isValidActor(request.resource.data.actorId,
+                                   request.resource.data.actorRole)
+                   && hasRole(['owner']);
+    }
+
+    // =========================================================
+    // CLIENTS (TALLER)
+    // Read libre (compromiso por capas).
+    // Write: recepcionista | manager | owner.
+    // El cierre de OT con cobro dispara increment() en
+    // totalVisits/totalSpent/lastVisitAt - lo hace recepcionista
+    // o manager/owner (cajero eliminado en V1).
+    // Delete bloqueado: un cliente nunca se borra, se inactiva.
+    // =========================================================
+    match /clients/{clientId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['name', 'phone', 'firstVisitAt',
+                          'totalVisits', 'totalSpent',
+                          'createdAt', 'createdBy']
+                       )
+                    && hasServerTimestamp('createdAt');
+
+      allow update: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && preservesField('createdAt')
+                    && preservesField('createdBy')
+                    && preservesField('firstVisitAt');
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // VEHICLES (TALLER)
+    // Read libre. Write: recepcionista | manager | owner.
+    // Denorm Regla 1: clientName + clientPhone obligatorios.
+    // Delete bloqueado: un vehiculo no se borra (historico).
+    // =========================================================
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['placa', 'marca', 'modelo',
+                          'clientId', 'clientName', 'clientPhone',
+                          'createdAt', 'createdBy']
+                       )
+                    && hasServerTimestamp('createdAt');
+
+      allow update: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && preservesField('createdAt')
+                    && preservesField('createdBy');
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // WORK ORDERS (TALLER) - la coleccion critica
+    // Read libre (filtro mecanico vive en query JS).
+    // Create: recepcionista | manager | owner.
+    // Update por rol:
+    //   - manager | owner: cualquier campo, cualquier status.
+    //   - recepcionista: todo MENOS totales financieros.
+    //                    No puede mover status a 'cancelado'.
+    //   - mechanic: solo si mechanicId == actorId,
+    //               sin tocar totales financieros,
+    //               sin mover status a 'entregado' ni 'cancelado'.
+    // Delete bloqueado: las OTs se archivan, no se borran.
+    // =========================================================
+    match /workOrders/{otId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['status', 'openedAt', 'problema',
+                          'clientId', 'clientName', 'clientPhone',
+                          'vehicleId', 'vehiclePlaca',
+                          'vehicleMarca', 'vehicleModelo',
+                          'totalLabor', 'totalParts', 'totalGeneral',
+                          'createdAt', 'createdBy']
+                       )
+                    && hasServerTimestamp('createdAt');
+
+      allow update: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && preservesField('createdAt')
+                    && preservesField('createdBy')
+                    && preservesField('openedAt')
+                    && (
+                      hasRole(['manager', 'owner'])
+                      ||
+                      (hasRole(['recepcionista'])
+                       && preservesField('totalLabor')
+                       && preservesField('totalParts')
+                       && preservesField('totalGeneral')
+                       && request.resource.data.status != 'cancelado')
+                      ||
+                      (hasRole(['mechanic'])
+                       && resource.data.mechanicId == request.resource.data.actorId
+                       && preservesField('totalLabor')
+                       && preservesField('totalParts')
+                       && preservesField('totalGeneral')
+                       && request.resource.data.status != 'entregado'
+                       && request.resource.data.status != 'cancelado')
+                    );
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // PAYMENTS (TALLER)
+    // Read libre. Append-only: sin update/delete.
+    // Create: recepcionista | manager | owner.
+    // Campos obligatorios incluyen denorm Regla 1.
+    // =========================================================
+    match /payments/{payId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['workOrderId', 'monto', 'formaPago',
+                          'paidAt', 'receivedBy', 'receivedByName',
+                          'clientName', 'vehiclePlaca']
+                       )
+                    && hasServerTimestamp('paidAt');
+
+      allow update, delete: if false;
+    }
+
+    // =========================================================
+    // ARCHIVOS (v2.2+) - workOrders y payments rotan cada mes.
+    // Estructura: _archive_workOrders_2026_03, etc.
+    // Escritura solo via Admin SDK (scripts/archive-month.js).
+    // Read libre: el role-gating de "solo manager/owner ven
+    // historico" vive en la UI (HistoricoViewer solo accesible
+    // desde panel). _audit y _whatsapp_events archivados se
+    // acceden via Console.
+    //
+    // PENDIENTE: las reglas de match no se pueden expresar con
+    // el patron _archive_workOrders_{period} (Firestore Rules no
+    // admite _{var} dentro del segmento). Cuando llegue el momento
+    // de archivar (mes 2-3), agregar reglas con sintaxis valida.
+    // Mientras tanto, el fallback al final niega read/write por default.
+    // =========================================================
+
+    // =========================================================
+    // FALLBACK - todo lo no definido se niega
+    // =========================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

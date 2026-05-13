@@ -1,0 +1,9 @@
+/* Reset minimo. El sistema de diseno vive en styles/variables.css. */
+
+html, body, #root {
+  height: 100%;
+}
+
+#root {
+  min-height: 100vh;
+}

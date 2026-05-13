@@ -1,0 +1,28 @@
+﻿.container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-family: Inter, sans-serif;
+}
+.select {
+  padding: 8px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #FFFFFF;
+  color: #1A1F2E;
+}
+.btn {
+  background: #1E40AF;
+  color: #FFFFFF;
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.btn:hover { background: #1E3A8A; }
+.btn:disabled { background: #9CA3AF; cursor: not-allowed; }
