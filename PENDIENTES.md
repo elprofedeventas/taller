@@ -79,6 +79,46 @@ cambios" sin tocar nada. Eso dispara `updateClient` y agrega
 
 ---
 
+## Bugs de tooling externo
+
+### Script `deploy-cliente.ps1` inyecta BOM UTF-8 en env vars de Vercel (alta para CI)
+
+`scripts/deploy-cliente.ps1` (compartido entre WAPs Nueva Orbita) hace
+`$valor | vercel env add VAR production`. El pipe de PowerShell hacia
+ejecutables nativos inyecta un BOM UTF-8 (`EF BB BF`) en stdin a Vercel
+CLI 53.1.1. Vercel almacena ese BOM en la env var; cuando Vite hace
+`import.meta.env.VITE_FIREBASE_PROJECT_ID` durante el build remoto,
+recibe `﻿taller-11d50`. Resultado: Firestore SDK queda esperando
+respuesta a un project ID inexistente → timeout 5s → "Sin conexion"
+en el login del cliente.
+
+**Workaround aplicado durante el deploy de TALLER demo (manual):**
+escribir cada valor en un archivo temporal con encoding UTF-8 sin BOM
+(`[System.IO.File]::WriteAllText($tmp, $valor, [UTF8Encoding]::new($false))`)
+y pipe a vercel via `cmd /c "vercel env add VAR prod < $tmp"`. Despues
+de eso, redeployar para que el build use las vars limpias.
+
+**Fix sugerido al script** (afecta todos los WAPs, validar con
+otros clientes antes de mergear):
+
+```powershell
+# Reemplazar en la seccion 6 del script:
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+foreach ($var in $RequiredVars) {
+    $valor = $envVars[$var]
+    $tmp = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($tmp, $valor, $utf8NoBom)
+    vercel env rm $var production --yes 2>&1 | Out-Null
+    cmd /c "vercel env add $var production < `"$tmp`"" 2>&1 | Out-Null
+    Remove-Item $tmp -Force
+}
+```
+
+Tambien aplicar el flag `-NoConfirm` que ya se agrego al script
+durante este sprint (backwards-compatible, ya en uso).
+
+---
+
 ## Refactors futuros
 
 ### Numeracion legible secuencial de OT (baja)
