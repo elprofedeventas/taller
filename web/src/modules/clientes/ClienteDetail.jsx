@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
 import { getClient } from '../../services/clientes';
 import { listVehiclesByClient } from '../../services/vehiculos';
+import { listOTsByClient } from '../../services/workOrders';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
 import { WhatsAppButton } from '../../components/WhatsAppButton';
 import { templatesByIds } from '../../services/whatsapp';
+import StatusBadge from '../ot/StatusBadge';
 import styles from './ClienteDetail.module.css';
+
+function formatDate(ts) {
+  if (!ts) return '—';
+  const d = typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 export default function ClienteDetail({ clienteId, navigate, auth }) {
   const [client, setClient] = useState(null);
   const [vehicles, setVehicles] = useState([]);
+  const [ots, setOts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,9 +27,10 @@ export default function ClienteDetail({ clienteId, navigate, auth }) {
       setLoading(true);
       setError(null);
       try {
-        const [c, v] = await Promise.all([
+        const [c, v, o] = await Promise.all([
           getClient(clienteId),
-          listVehiclesByClient(clienteId)
+          listVehiclesByClient(clienteId),
+          listOTsByClient(clienteId, 10)
         ]);
         if (cancelled) return;
         if (!c) {
@@ -28,6 +38,7 @@ export default function ClienteDetail({ clienteId, navigate, auth }) {
         } else {
           setClient(c);
           setVehicles(v);
+          setOts(o);
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -137,9 +148,36 @@ export default function ClienteDetail({ clienteId, navigate, auth }) {
 
       <section className={styles.historySection}>
         <h2 className={styles.subtitle}>Historial de OTs</h2>
-        <p className={styles.placeholder}>
-          Sin OTs todavia. El historial aparecera cuando se construya el modulo OT.
-        </p>
+        {ots.length === 0 ? (
+          <p className={styles.empty}>Sin OTs registradas para este cliente.</p>
+        ) : (
+          <ul className={styles.otList}>
+            {ots.map(ot => (
+              <li
+                key={ot.id}
+                className={styles.otItem}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate('ot-detail', { id: ot.id })}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') navigate('ot-detail', { id: ot.id });
+                }}
+              >
+                <div className={styles.otMain}>
+                  <span className={styles.otPlaca}>{ot.vehiclePlaca}</span>
+                  <span className={styles.otMeta}>{ot.vehicleMarca} {ot.vehicleModelo}</span>
+                  <span className={styles.otMeta}>{formatDate(ot.openedAt || ot.createdAt)}</span>
+                </div>
+                <div className={styles.otRight}>
+                  <StatusBadge status={ot.status} />
+                  {ot.totalGeneral > 0 && (
+                    <span className={styles.otTotal}>${Number(ot.totalGeneral).toFixed(2)}</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

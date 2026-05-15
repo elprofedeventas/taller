@@ -79,6 +79,26 @@ export default function CobroForm({ otId, navigate, auth }) {
   async function handleCobrar(e) {
     e.preventDefault();
     if (saving) return;
+
+    const montoNum = Number(monto);
+    const calculado = computedTotals.totalGeneral;
+
+    // Validacion: alerta si el monto difiere >10% del total calculado.
+    // Solo se valida si hay desglose (totalGeneral > 0).
+    if (calculado > 0 && Number.isFinite(montoNum) && montoNum > 0) {
+      const diff = Math.abs(montoNum - calculado) / calculado;
+      if (diff > 0.10) {
+        const direction = montoNum < calculado ? 'menos' : 'mas';
+        const ok = window.confirm(
+          `El monto a cobrar es $${montoNum.toFixed(2)}, ${direction} del ` +
+          `total calculado $${calculado.toFixed(2)} ` +
+          `(diferencia ${(diff * 100).toFixed(0)}%).\n\n` +
+          'Confirmar el cobro?'
+        );
+        if (!ok) return;
+      }
+    }
+
     setError(null);
     setSaving(true);
     try {

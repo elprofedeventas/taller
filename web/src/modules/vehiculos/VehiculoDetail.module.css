@@ -79,6 +79,78 @@
   margin: 0;
 }
 
+.empty {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.otList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.otItem {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background-color 80ms ease;
+}
+
+.otItem:hover {
+  background: var(--bg-active);
+}
+
+.otMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.otDate {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.otMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.otProblema {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.otRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.otTotal {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
 .error {
   color: var(--danger);
   font-size: 14px;

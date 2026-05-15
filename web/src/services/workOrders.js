@@ -20,8 +20,8 @@
 import { db } from './firestore';
 import { withActor } from './auth';
 import {
-  collection, doc, getDoc, addDoc, updateDoc,
-  query, where, orderBy, serverTimestamp
+  collection, doc, getDoc, getDocs, addDoc, updateDoc,
+  query, where, orderBy, limit, serverTimestamp
 } from 'firebase/firestore';
 
 const COLLECTION = 'workOrders';
@@ -109,6 +109,38 @@ export function activeOTsQuery({ mechanicId } = {}) {
     where('status', 'in', ACTIVE_STATUSES),
     orderBy('createdAt', 'desc')
   );
+}
+
+/**
+ * Lista las ultimas N OTs de un cliente (todas, no solo activas).
+ * Usado en ClienteDetail para mostrar historial.
+ */
+export async function listOTsByClient(clientId, limitN = 10) {
+  if (!clientId) return [];
+  const q = query(
+    workOrdersCollection(),
+    where('clientId', '==', clientId),
+    orderBy('createdAt', 'desc'),
+    limit(limitN)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Lista las ultimas N OTs de un vehiculo (todas, no solo activas).
+ * Usado en VehiculoDetail para mostrar historial.
+ */
+export async function listOTsByVehicle(vehicleId, limitN = 10) {
+  if (!vehicleId) return [];
+  const q = query(
+    workOrdersCollection(),
+    where('vehicleId', '==', vehicleId),
+    orderBy('createdAt', 'desc'),
+    limit(limitN)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 /**

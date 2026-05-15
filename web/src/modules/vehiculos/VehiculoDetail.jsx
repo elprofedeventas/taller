@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
 import { getVehicle } from '../../services/vehiculos';
+import { listOTsByVehicle } from '../../services/workOrders';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
+import StatusBadge from '../ot/StatusBadge';
 import styles from './VehiculoDetail.module.css';
+
+function formatDate(ts) {
+  if (!ts) return '—';
+  const d = typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 export default function VehiculoDetail({ vehiculoId, navigate }) {
   const [vehicle, setVehicle] = useState(null);
+  const [ots, setOts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -12,12 +21,16 @@ export default function VehiculoDetail({ vehiculoId, navigate }) {
     let cancelled = false;
     async function load() {
       try {
-        const v = await getVehicle(vehiculoId);
+        const [v, o] = await Promise.all([
+          getVehicle(vehiculoId),
+          listOTsByVehicle(vehiculoId, 10)
+        ]);
         if (cancelled) return;
         if (!v) {
           setError('Vehiculo no encontrado.');
         } else {
           setVehicle(v);
+          setOts(o);
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -99,9 +112,36 @@ export default function VehiculoDetail({ vehiculoId, navigate }) {
 
       <section className={styles.historySection}>
         <h2 className={styles.subtitle}>Historial de OTs</h2>
-        <p className={styles.placeholder}>
-          Sin OTs todavia. El historial aparecera cuando se construya el modulo OT.
-        </p>
+        {ots.length === 0 ? (
+          <p className={styles.empty}>Sin OTs registradas para este vehiculo.</p>
+        ) : (
+          <ul className={styles.otList}>
+            {ots.map(ot => (
+              <li
+                key={ot.id}
+                className={styles.otItem}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate('ot-detail', { id: ot.id })}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') navigate('ot-detail', { id: ot.id });
+                }}
+              >
+                <div className={styles.otMain}>
+                  <span className={styles.otDate}>{formatDate(ot.openedAt || ot.createdAt)}</span>
+                  <span className={styles.otMeta}>{ot.mechanicName || 'Sin mecanico'}</span>
+                  <span className={styles.otProblema}>{ot.problema || '—'}</span>
+                </div>
+                <div className={styles.otRight}>
+                  <StatusBadge status={ot.status} />
+                  {ot.totalGeneral > 0 && (
+                    <span className={styles.otTotal}>${Number(ot.totalGeneral).toFixed(2)}</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
