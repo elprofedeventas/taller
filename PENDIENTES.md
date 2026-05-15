@@ -81,6 +81,47 @@ cambios" sin tocar nada. Eso dispara `updateClient` y agrega
 
 ## Bugs de tooling externo
 
+### Script `deploy-cliente.ps1` usa sintaxis antigua de `vercel domains add` (alta para CI)
+
+`scripts/deploy-cliente.ps1` linea 248 ejecuta:
+
+```powershell
+vercel domains add $Subdominio $ProyectoVercel 2>&1 | Out-Null
+```
+
+En Vercel CLI 53.1.1 esa sintaxis (2 argumentos) NO es valida. El CLI
+responde con `action_required: missing_arguments` y el `| Out-Null`
+lo silencia, asi que el script reporta "OK" cuando el dominio
+nunca se asocio. Resultado: el deploy parece exitoso pero al
+visitar el subdominio se obtiene `404 DEPLOYMENT_NOT_FOUND`.
+
+Workaround aplicado manualmente al deploy de TALLER demo: ejecutar
+desde web/ con .vercel/ vinculado:
+
+```powershell
+vercel domains add taller.nuevaorbita.com
+```
+
+Sin el segundo argumento, el comando infiere el proyecto desde
+`web/.vercel/project.json` y asigna el dominio. Vercel responde:
+"Domain will automatically get assigned to your latest production
+deployment."
+
+**Fix sugerido al script** (linea 248-252):
+
+```powershell
+vercel domains add $Subdominio 2>&1
+# Eliminar el 'vercel alias set' siguiente: ya no es necesario
+# porque 'vercel domains add' asigna automaticamente al ultimo
+# production deployment.
+```
+
+Tambien quitar el `| Out-Null` de los comandos criticos para no
+silenciar errores futuros. Lo correcto es mostrar el output a la
+consola y verificar `$LASTEXITCODE` para abortar si falla.
+
+---
+
 ### Script `deploy-cliente.ps1` inyecta BOM UTF-8 en env vars de Vercel (alta para CI)
 
 `scripts/deploy-cliente.ps1` (compartido entre WAPs Nueva Orbita) hace
