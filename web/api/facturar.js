@@ -422,11 +422,39 @@ async function postSoap(url, body) {
   return resp.data;
 }
 
-// Parser minimo de respuesta XML (extrae estado y mensajes)
+// Extrae los <mensaje> individuales dentro del bloque <mensajes>.
+// Cada mensaje del SRI tiene: identificador, mensaje (texto), tipo,
+// informacionAdicional. Devuelve array de objetos.
+function parseMensajesSri(xmlString) {
+  const mensajes = [];
+  // Captura cada bloque <mensaje>...</mensaje> dentro de <mensajes>
+  const bloqueMensajes = xmlString.match(/<mensajes>([\s\S]*?)<\/mensajes>/);
+  if (!bloqueMensajes) return mensajes;
+  const inner = bloqueMensajes[1];
+  const re = /<mensaje>([\s\S]*?)<\/mensaje>(?=\s*(?:<mensaje>|<\/mensajes>))/g;
+  let m;
+  while ((m = re.exec(inner)) !== null) {
+    const blk = m[1];
+    const get = (tag) => {
+      const r = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
+      const mm = blk.match(r);
+      return mm ? mm[1].trim() : '';
+    };
+    mensajes.push({
+      identificador: get('identificador'),
+      mensaje: get('mensaje'),
+      tipo: get('tipo'),
+      informacionAdicional: get('informacionAdicional')
+    });
+  }
+  return mensajes;
+}
+
 function parseRecepcionResponse(xmlString) {
   const estadoMatch = xmlString.match(/<estado>([^<]+)<\/estado>/);
   return {
     estado: estadoMatch ? estadoMatch[1] : 'DESCONOCIDO',
+    mensajes: parseMensajesSri(xmlString),
     raw: xmlString
   };
 }
@@ -439,6 +467,7 @@ function parseAutorizacionResponse(xmlString) {
     estado: estadoMatch ? estadoMatch[1] : 'DESCONOCIDO',
     numeroAutorizacion: numAutMatch ? numAutMatch[1] : null,
     fechaAutorizacion: fechaAutMatch ? fechaAutMatch[1] : null,
+    mensajes: parseMensajesSri(xmlString),
     raw: xmlString
   };
 }
@@ -543,7 +572,8 @@ export default async function handler(req, res) {
       return res.status(422).json({
         error: 'SRI rechazo el comprobante en recepcion',
         estado: respRecepcion.estado,
-        detalle: respRecepcion.raw.slice(0, 2000),
+        mensajes: respRecepcion.mensajes,
+        detalle: respRecepcion.raw.slice(0, 3000),
         claveAcceso: claveAccesoGen
       });
     }
@@ -558,7 +588,8 @@ export default async function handler(req, res) {
     if (respAut.estado !== 'AUTORIZADO') {
       return res.status(422).json({
         error: `SRI estado: ${respAut.estado}`,
-        detalle: respAut.raw.slice(0, 2000),
+        mensajes: respAut.mensajes,
+        detalle: respAut.raw.slice(0, 3000),
         claveAcceso: claveAccesoGen,
         estado: respAut.estado
       });
