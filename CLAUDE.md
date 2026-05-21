@@ -19,7 +19,7 @@
 4. Toda escritura a Firestore pasa por withActor(session, data).
 5. Listeners de Firestore tienen cleanup en useEffect.
 6. firestore.rules se actualiza en la misma sesion que se crea/modifica una coleccion.
-7. UI sin emojis en produccion. Espanol neutro, sin regionalismos.
+7. UI sin emojis en produccion. Espanol neutro, sin regionalismos. **Esto aplica TAMBIEN a las respuestas conversacionales que Claude le da a Alfredo (Ecuador): usar tuteo (tu, haz, abre, mira, pasa, manda, dime) NUNCA voseo argentino/uruguayo (vos, hacé, abrí, mirá, pasame, mandame, decime). Trampas comunes: "Hacé", "Pasame", "Pegame", "Andá", "Mandame", "Decime", "Avisame" → en su lugar usar "Haz", "Pasa", "Pega", "Ve", "Manda", "Dime", "Avisa".**
 8. Cada npm install requiere confirmacion previa.
 9. Aplicar las 6 reglas de denormalizacion (Protocolo seccion 10).
 10. No tocar archivos no pedidos. No "limpiar" codigo existente sin que se pida.
