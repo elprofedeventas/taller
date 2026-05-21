@@ -527,12 +527,19 @@ export default async function handler(req, res) {
     }
 
     const ambiente = process.env.SRI_AMBIENTE || '1';
+    // Fecha en zona horaria Ecuador (UTC-5, sin DST). La Vercel Function
+    // corre en UTC; sin esto, cerca de medianoche Ecuador la fecha
+    // generada queda en el dia siguiente segun el reloj SRI y rechaza
+    // con identificador 65 (FECHA EMISION EXTEMPORANEA).
     const fecha = fechaEmision || (() => {
-      const d = new Date();
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const aaaa = d.getFullYear();
-      return `${dd}/${mm}/${aaaa}`;
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Guayaquil',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const parts = fmt.format(new Date()).split('-'); // [YYYY, MM, DD]
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
     })();
 
     // Generar codigo numerico aleatorio (8 digitos)
