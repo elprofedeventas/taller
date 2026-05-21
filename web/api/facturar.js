@@ -580,7 +580,7 @@ export default async function handler(req, res) {
         error: 'SRI rechazo el comprobante en recepcion',
         estado: respRecepcion.estado,
         mensajes: respRecepcion.mensajes,
-        detalle: respRecepcion.raw.slice(0, 3000),
+        detalle: respRecepcion.raw.slice(0, 12000),
         claveAcceso: claveAccesoGen
       });
     }
@@ -593,10 +593,18 @@ export default async function handler(req, res) {
     const respAut = parseAutorizacionResponse(xmlAutStr);
 
     if (respAut.estado !== 'AUTORIZADO') {
+      // Extraer SOLO el bloque <mensajes> del raw para evitar el ruido
+      // del <comprobante> embebido (que ocupa la mayor parte y empuja
+      // los <mensajes> fuera del truncado).
+      const mensajesBlock = respAut.raw.match(/<mensajes>[\s\S]*?<\/mensajes>/);
+      const detalleFocused = mensajesBlock
+        ? mensajesBlock[0]
+        : respAut.raw.slice(0, 12000);
       return res.status(422).json({
         error: `SRI estado: ${respAut.estado}`,
         mensajes: respAut.mensajes,
-        detalle: respAut.raw.slice(0, 3000),
+        detalle: detalleFocused,
+        detalleRaw: respAut.raw.slice(0, 12000),
         claveAcceso: claveAccesoGen,
         estado: respAut.estado
       });

@@ -149,7 +149,8 @@ export async function emitirFactura(session, {
         error: data?.error || 'Error desconocido',
         estado: data?.estado || null,
         mensajes: Array.isArray(data?.mensajes) ? data.mensajes : [],
-        detalle: data?.detalle || null
+        detalle: data?.detalle || null,
+        detalleRaw: data?.detalleRaw || null
       };
       await updateDoc(facturaRef, withActor(session, {
         estado: 'RECHAZADA',
