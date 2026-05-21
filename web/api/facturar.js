@@ -1,10 +1,11 @@
 // web/api/facturar.js
-// Vercel Function - Facturacion electronica SRI Ecuador, sin
-// dependencias externas problematicas (sin open-factura). Implementa:
+// Vercel Function - Facturacion electronica SRI Ecuador. Usa
+// ec-sri-invoice-signer para la firma XAdES-BES (libreria probada
+// contra SRI real). Implementa:
 //   - Encriptar/desencriptar .p12 con AES-256-CBC (crypto nativo).
 //   - Calculo de clave de acceso 49 digitos (SRI Ecuador).
 //   - Generacion de XML factura version 2.1.0.
-//   - Firma XAdES-BES manual con node-forge.
+//   - Firma con signInvoiceXml de ec-sri-invoice-signer.
 //   - Envio SOAP al SRI con axios + parseo de respuesta XML.
 //
 // Acciones POST:
@@ -15,6 +16,7 @@
 import crypto from 'crypto';
 import * as forgePkg from 'node-forge';
 import axios from 'axios';
+import { signInvoiceXml } from 'ec-sri-invoice-signer';
 
 const forge = forgePkg.default || forgePkg;
 
@@ -196,147 +198,10 @@ function buildFacturaXml({
 }
 
 // ============================================================
-// Firma XAdES-BES para SRI Ecuador
-// Implementacion basada en la spec de comprobantes electronicos
-// del SRI version 2.1.0. NO usa librerias externas: solo node-forge
-// para criptografia + manipulacion de strings para XML.
+// Firma XAdES-BES delegada a ec-sri-invoice-signer (signInvoiceXml).
+// La libreria recibe el XML de la factura + el buffer del .p12 + la
+// password y devuelve el XML firmado listo para enviar al SRI.
 // ============================================================
-
-function extraerClaveCertificado(p12Buffer, password) {
-  const p12Asn1 = forge.asn1.fromDer(forge.util.createBuffer(p12Buffer));
-  const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
-
-  // Buscar bag de clave privada
-  const keyBags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
-  const keyBag = keyBags[forge.pki.oids.pkcs8ShroudedKeyBag][0];
-  const privateKey = keyBag.key;
-
-  // Buscar bag de certificado (el de mayor cantidad de extensions suele ser el del firmante)
-  const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
-  const certs = certBags[forge.pki.oids.certBag];
-  const certBag = certs.reduce((best, cur) =>
-    cur.cert.extensions.length > best.cert.extensions.length ? cur : best
-  );
-  const cert = certBag.cert;
-
-  return { privateKey, cert };
-}
-
-function sha1Base64(str) {
-  return crypto.createHash('sha1').update(str, 'utf8').digest('base64');
-}
-
-function sha1Base64Bytes(bytes) {
-  return crypto.createHash('sha1').update(bytes).digest('base64');
-}
-
-// BigInteger (forge) -> base64 unsigned big-endian. Para Modulus/Exponent.
-function bigIntegerToBase64(bigInt) {
-  let hex = bigInt.toString(16);
-  if (hex.length % 2 !== 0) hex = '0' + hex;
-  return Buffer.from(hex, 'hex').toString('base64');
-}
-
-/**
- * Firma XAdES-BES segun spec SRI Ecuador.
- * Implementacion alineada con bryancalisto/ec-sri-invoice-signer:
- *  - Issuer en formato RFC2253 (reversed), sin espacios despues de comas.
- *  - Reference #comprobante con transform enveloped-signature (no C14N).
- *    El hash se calcula sobre el subtree SIN la signature, y SRI quita
- *    la signature antes de re-hashear (resuelve el chicken-and-egg).
- *  - SignedProperties canonicalizado con xmlns:ds ANTES de xmlns:xades
- *    (orden alfabetico por prefijo, requisito de Inclusive C14N 1.0).
- *  - KeyInfo incluye X509Certificate + RSAKeyValue (Modulus + Exponent).
- *  - Prefijo xades: en lugar de etsi: para coincidir con la convencion SRI.
- *
- * @param facturaSubtree - subtree <factura id="comprobante"...> compacto, sin firma.
- * @param privateKey - llave privada (forge pki).
- * @param cert - certificado X509 (forge pki).
- * @returns xml firmado completo (con declaracion + factura + signature dentro).
- */
-function firmarXadesBes(facturaSubtree, privateKey, cert) {
-  // 1. IDs unicos
-  const ts = Date.now();
-  const signatureId = `Signature${ts}`;
-  const signedPropsId = `Signature${ts}-SignedProperties${ts}`;
-  const keyInfoId = `Certificate${ts}`;
-  const signedInfoId = `Signature-SignedInfo${ts}`;
-  const objectId = `Signature${ts}-Object${ts}`;
-  const referenceId = `Reference-ID-${ts}`;
-  const signatureValueId = `SignatureValue${ts}`;
-
-  // 2. Certificado DER -> base64
-  const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
-  const certBase64 = forge.util.encode64(certDer);
-
-  // 3. Hash SHA1 del certificado (sobre los bytes DER raw)
-  const certSha1 = crypto.createHash('sha1').update(Buffer.from(certDer, 'binary')).digest('base64');
-
-  // 4. Issuer RFC2253: reverse del orden del cert (CN,L,OU,O,C),
-  //    sin espacios despues de las comas. Atributos sin shortName usan OID.
-  const issuer = cert.issuer.attributes
-    .slice()
-    .reverse()
-    .filter(a => a.shortName || a.type)
-    .map(a => `${a.shortName || a.type}=${a.value}`)
-    .join(',');
-  const serialDec = BigInt('0x' + cert.serialNumber).toString();
-
-  // 5. Modulus + Exponent (BigInteger -> base64 unsigned)
-  const modulusB64 = bigIntegerToBase64(cert.publicKey.n);
-  const exponentB64 = bigIntegerToBase64(cert.publicKey.e);
-
-  // 6. SignedProperties (XAdES, prefijo xades:, compacto).
-  //    Schema XAdES: SignedSignatureProperties y SignedDataObjectProperties
-  //    son SIBLINGS dentro de SignedProperties, no anidados. SRI valida
-  //    el schema y rechaza con error 39 si se anidan mal.
-  const ahora = new Date().toISOString();
-  const signedProperties = `<xades:SignedProperties Id="${signedPropsId}"><xades:SignedSignatureProperties><xades:SigningTime>${ahora}</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${certSha1}</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>${xmlEscape(issuer)}</ds:X509IssuerName><ds:X509SerialNumber>${serialDec}</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate></xades:SignedSignatureProperties><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#${referenceId}"><xades:Description>contenido comprobante</xades:Description><xades:MimeType>text/xml</xades:MimeType></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedProperties>`;
-
-  // 7. Canonicalizar SignedProperties. Inclusive C14N 1.0 ordena las
-  //    declaraciones xmlns alfabeticamente por prefijo: ds antes que xades.
-  const signedPropsCanon = signedProperties.replace(
-    '<xades:SignedProperties ',
-    '<xades:SignedProperties xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" '
-  );
-  const signedPropsSha1 = sha1Base64(signedPropsCanon);
-
-  // 8. KeyInfo: X509Data + KeyValue (SRI rechaza si falta cualquiera).
-  const keyInfoXml = `<ds:KeyInfo Id="${keyInfoId}"><ds:X509Data><ds:X509Certificate>${certBase64}</ds:X509Certificate></ds:X509Data><ds:KeyValue><ds:RSAKeyValue><ds:Modulus>${modulusB64}</ds:Modulus><ds:Exponent>${exponentB64}</ds:Exponent></ds:RSAKeyValue></ds:KeyValue></ds:KeyInfo>`;
-  const keyInfoCanon = keyInfoXml.replace(
-    '<ds:KeyInfo ',
-    '<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#" '
-  );
-  const keyInfoSha1 = sha1Base64(keyInfoCanon);
-
-  // 9. Hash del subtree <factura> sin firma. Cuando SRI dereferencia
-  //    URI="#comprobante" aplica enveloped-signature (quita ds:Signature)
-  //    y obtiene el mismo subtree que aqui hasheamos.
-  const comprobanteSha1 = sha1Base64(facturaSubtree);
-
-  // 10. SignedInfo. Solo el Reference #comprobante lleva <ds:Transforms>
-  //     y la unica transform es enveloped-signature.
-  const signedInfo = `<ds:SignedInfo Id="${signedInfoId}"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></ds:CanonicalizationMethod><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"></ds:SignatureMethod><ds:Reference Id="SignedPropertiesID${ts}" Type="http://uri.etsi.org/01903#SignedProperties" URI="#${signedPropsId}"><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${signedPropsSha1}</ds:DigestValue></ds:Reference><ds:Reference URI="#${keyInfoId}"><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${keyInfoSha1}</ds:DigestValue></ds:Reference><ds:Reference Id="${referenceId}" URI="#comprobante"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></ds:Transform></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${comprobanteSha1}</ds:DigestValue></ds:Reference></ds:SignedInfo>`;
-
-  // 11. Canonicalizar SignedInfo (xmlns:ds heredado) y firmar RSA-SHA1.
-  const signedInfoCanon = signedInfo.replace(
-    '<ds:SignedInfo ',
-    '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#" '
-  );
-  const md = forge.md.sha1.create();
-  md.update(signedInfoCanon, 'utf8');
-  const signatureBin = privateKey.sign(md);
-  const signatureValue = forge.util.encode64(signatureBin);
-
-  // 12. Ensamblar <ds:Signature>. xmlns:ds y xmlns:xades en el elemento
-  //     raiz; los hijos los heredan sin necesidad de redeclararlos.
-  const signatureBlock = `<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="${signatureId}">${signedInfo}<ds:SignatureValue Id="${signatureValueId}">${signatureValue}</ds:SignatureValue>${keyInfoXml}<ds:Object Id="${objectId}"><xades:QualifyingProperties Target="#${signatureId}">${signedProperties}</xades:QualifyingProperties></ds:Object></ds:Signature>`;
-
-  // 13. Insertar <ds:Signature> antes del </factura>
-  const facturaFirmada = facturaSubtree.replace('</factura>', `${signatureBlock}</factura>`);
-
-  return `<?xml version="1.0" encoding="UTF-8"?>\n${facturaFirmada}`;
-}
 
 // ============================================================
 // Envio SOAP al SRI: recepcion + autorizacion
@@ -516,16 +381,17 @@ export default async function handler(req, res) {
       tipoEmision: '1'
     });
 
-    // Subtree de la factura (compacto, sin pretty-print, sin XML decl)
-    const { facturaSubtree, totales } = buildFacturaXml({
+    // XML completo de la factura (con declaracion XML)
+    const { xml: facturaXml, totales } = buildFacturaXml({
       emisor, receptor, items, secuencial, formaPago, fechaEmision: fecha,
       claveAcceso: claveAccesoGen, ambiente
     });
 
-    // Firma XAdES-BES sobre el subtree
+    // Firma XAdES-BES via ec-sri-invoice-signer
     const p12Buffer = decryptP12(p12Encrypted);
-    const { privateKey, cert } = extraerClaveCertificado(p12Buffer, p12Password);
-    const xmlFirmado = firmarXadesBes(facturaSubtree, privateKey, cert);
+    const xmlFirmado = signInvoiceXml(facturaXml, p12Buffer, {
+      pkcs12Password: p12Password
+    });
 
     // Envio a SRI Recepcion
     const soapRecepcion = buildSoapRecepcion(xmlFirmado);
