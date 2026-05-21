@@ -23,6 +23,37 @@
   margin: 0;
 }
 
+.subhint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: -8px 0 0 0;
+  font-style: italic;
+}
+
+.section {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 16px 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.section:first-child {
+  margin-top: 0;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.half {
+  flex: 1;
+}
+
 .form {
   display: flex;
   flex-direction: column;

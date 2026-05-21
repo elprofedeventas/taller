@@ -5,6 +5,7 @@ import { getTallerConfig } from '../../services/config';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
 import { WhatsAppButton } from '../../components/WhatsAppButton';
 import { templatesByIds } from '../../services/whatsapp';
+import BotonFacturar from '../facturacion/BotonFacturar';
 import styles from './Comprobante.module.css';
 
 const FORMA_PAGO_LABEL = {
@@ -96,6 +97,28 @@ export default function Comprobante({ paymentId, navigate, auth }) {
           context={{ collection: 'payments', docId: payment.id }}
           buttonLabel="Enviar por WhatsApp"
           auth={auth}
+        />
+        <BotonFacturar
+          auth={auth}
+          receptor={{
+            tipoId: '05',
+            identificacion: '',
+            razonSocial: ot.clientName || '',
+            direccion: '',
+            email: ''
+          }}
+          items={[{
+            codigo: ot.id?.slice(-6) || '001',
+            descripcion: `Servicio mecanico - OT ${ot.id?.slice(-6) || ''} - ${ot.vehiclePlaca}`,
+            cantidad: '1',
+            precioUnitario: String(payment.monto || 0),
+            descuento: '0',
+            tieneIva: true
+          }]}
+          workOrderId={ot.id}
+          paymentId={payment.id}
+          label="Emitir Factura SRI"
+          variant="secondary"
         />
         <button
           type="button"

@@ -295,6 +295,53 @@ service cloud.firestore {
     }
 
     // =========================================================
+    // FACTURAS (TALLER) - facturacion electronica SRI Ecuador.
+    // Read libre. Create: recepcionista | manager | owner.
+    // Update solo para transiciones de estado (PENDIENTE -> AUTORIZADA
+    // o RECHAZADA), preserva campos inmutables.
+    // Delete bloqueado.
+    // =========================================================
+    match /facturas/{facturaId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['estado', 'secuencial', 'estab', 'ptoEmi',
+                          'receptor', 'items', 'formaPago',
+                          'createdAt', 'createdBy']
+                       )
+                    && hasServerTimestamp('createdAt');
+
+      allow update: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && preservesField('createdAt')
+                    && preservesField('createdBy')
+                    && preservesField('secuencial')
+                    && preservesField('estab')
+                    && preservesField('ptoEmi');
+
+      allow delete: if false;
+    }
+
+    // =========================================================
+    // COUNTERS - contadores transaccionales (secuencial de facturas).
+    // Read libre. Write recepcionista | manager | owner (la atomicidad
+    // se garantiza con runTransaction del lado cliente).
+    // =========================================================
+    match /counters/{counterId} {
+      allow read: if true;
+      allow write: if hasActor()
+                   && isValidActor(request.resource.data.actorId,
+                                   request.resource.data.actorRole)
+                   && hasRole(['recepcionista', 'manager', 'owner']);
+    }
+
+    // =========================================================
     // ARCHIVOS (v2.2+) - workOrders y payments rotan cada mes.
     // Estructura: _archive_workOrders_2026_03, etc.
     // Escritura solo via Admin SDK (scripts/archive-month.js).

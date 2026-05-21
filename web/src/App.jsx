@@ -19,6 +19,7 @@ import Comprobante from './modules/caja/Comprobante';
 import ConfiguracionForm from './modules/configuracion/ConfiguracionForm';
 import PanelDueno from './modules/panel/PanelDueno';
 import HistoricoView from './modules/panel/HistoricoView';
+import PantallaFacturacion from './modules/facturacion/PantallaFacturacion';
 import styles from './App.module.css';
 
 const MODULES = [
@@ -26,6 +27,7 @@ const MODULES = [
   { route: 'recepcion', label: 'Recepcion', enabled: true, allowedRoles: null },
   { route: 'ot', label: 'OTs', enabled: true, allowedRoles: null },
   { route: 'caja', label: 'Caja', enabled: true, allowedRoles: null },
+  { route: 'facturacion', label: 'Facturacion', enabled: true, allowedRoles: ['owner', 'manager', 'recepcionista'] },
   { route: 'panel', label: 'Panel', enabled: true, allowedRoles: ['owner', 'manager'] },
   { route: 'usuarios', label: 'Usuarios', enabled: true, allowedRoles: ['owner'] },
   { route: 'configuracion', label: 'Configuracion', enabled: true, allowedRoles: ['owner'] }
@@ -168,6 +170,8 @@ function renderRoute(route, navigate, auth) {
       );
     case 'configuracion':
       return <ConfiguracionForm key={`cfg-${k}`} auth={auth} />;
+    case 'facturacion':
+      return <PantallaFacturacion key={`fac-${k}`} navigate={navigate} auth={auth} />;
     case 'panel':
       return <PanelDueno key={`panel-${k}`} navigate={navigate} auth={auth} />;
     case 'historico':
