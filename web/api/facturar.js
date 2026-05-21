@@ -286,9 +286,12 @@ function firmarXadesBes(facturaSubtree, privateKey, cert) {
   const modulusB64 = bigIntegerToBase64(cert.publicKey.n);
   const exponentB64 = bigIntegerToBase64(cert.publicKey.e);
 
-  // 6. SignedProperties (XAdES, prefijo xades:, compacto)
+  // 6. SignedProperties (XAdES, prefijo xades:, compacto).
+  //    Schema XAdES: SignedSignatureProperties y SignedDataObjectProperties
+  //    son SIBLINGS dentro de SignedProperties, no anidados. SRI valida
+  //    el schema y rechaza con error 39 si se anidan mal.
   const ahora = new Date().toISOString();
-  const signedProperties = `<xades:SignedProperties Id="${signedPropsId}"><xades:SignedSignatureProperties><xades:SigningTime>${ahora}</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${certSha1}</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>${xmlEscape(issuer)}</ds:X509IssuerName><ds:X509SerialNumber>${serialDec}</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#${referenceId}"><xades:Description>contenido comprobante</xades:Description><xades:MimeType>text/xml</xades:MimeType></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedSignatureProperties></xades:SignedProperties>`;
+  const signedProperties = `<xades:SignedProperties Id="${signedPropsId}"><xades:SignedSignatureProperties><xades:SigningTime>${ahora}</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${certSha1}</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>${xmlEscape(issuer)}</ds:X509IssuerName><ds:X509SerialNumber>${serialDec}</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate></xades:SignedSignatureProperties><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#${referenceId}"><xades:Description>contenido comprobante</xades:Description><xades:MimeType>text/xml</xades:MimeType></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedProperties>`;
 
   // 7. Canonicalizar SignedProperties. Inclusive C14N 1.0 ordena las
   //    declaraciones xmlns alfabeticamente por prefijo: ds antes que xades.
