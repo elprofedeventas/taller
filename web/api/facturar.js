@@ -143,6 +143,9 @@ function buildFacturaXml({
   let baseImponibleIva15 = 0;
   let baseImponibleIva0 = 0;
 
+  // XML compacto sin pretty-print: el hash SHA1 sobre el subtree
+  // <factura> debe ser estable. Cualquier whitespace cambia el hash
+  // y SRI rechaza con FIRMA INVALIDA.
   const detallesXml = items.map(item => {
     const cantidad = parseFloat(item.cantidad);
     const precioUnitario = parseFloat(item.precioUnitario);
@@ -157,114 +160,39 @@ function buildFacturaXml({
       const valorIva = parseFloat((precioTotalSinImpuesto * 0.15).toFixed(2));
       baseImponibleIva15 += precioTotalSinImpuesto;
       totalIva15 += valorIva;
-      impuestoXml = `
-            <impuesto>
-              <codigo>2</codigo>
-              <codigoPorcentaje>${IVA_15_PORCENTAJE}</codigoPorcentaje>
-              <tarifa>15.00</tarifa>
-              <baseImponible>${precioTotalSinImpuesto.toFixed(2)}</baseImponible>
-              <valor>${valorIva.toFixed(2)}</valor>
-            </impuesto>`;
+      impuestoXml = `<impuesto><codigo>2</codigo><codigoPorcentaje>${IVA_15_PORCENTAJE}</codigoPorcentaje><tarifa>15.00</tarifa><baseImponible>${precioTotalSinImpuesto.toFixed(2)}</baseImponible><valor>${valorIva.toFixed(2)}</valor></impuesto>`;
     } else {
       baseImponibleIva0 += precioTotalSinImpuesto;
-      impuestoXml = `
-            <impuesto>
-              <codigo>2</codigo>
-              <codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje>
-              <tarifa>0.00</tarifa>
-              <baseImponible>${precioTotalSinImpuesto.toFixed(2)}</baseImponible>
-              <valor>0.00</valor>
-            </impuesto>`;
+      impuestoXml = `<impuesto><codigo>2</codigo><codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje><tarifa>0.00</tarifa><baseImponible>${precioTotalSinImpuesto.toFixed(2)}</baseImponible><valor>0.00</valor></impuesto>`;
     }
 
-    return `
-      <detalle>
-        <codigoPrincipal>${xmlEscape(item.codigo || '001')}</codigoPrincipal>
-        <descripcion>${xmlEscape(item.descripcion)}</descripcion>
-        <cantidad>${cantidad.toFixed(2)}</cantidad>
-        <precioUnitario>${precioUnitario.toFixed(2)}</precioUnitario>
-        <descuento>${descuento.toFixed(2)}</descuento>
-        <precioTotalSinImpuesto>${precioTotalSinImpuesto.toFixed(2)}</precioTotalSinImpuesto>
-        <impuestos>${impuestoXml}
-        </impuestos>
-      </detalle>`;
+    return `<detalle><codigoPrincipal>${xmlEscape(item.codigo || '001')}</codigoPrincipal><descripcion>${xmlEscape(item.descripcion)}</descripcion><cantidad>${cantidad.toFixed(2)}</cantidad><precioUnitario>${precioUnitario.toFixed(2)}</precioUnitario><descuento>${descuento.toFixed(2)}</descuento><precioTotalSinImpuesto>${precioTotalSinImpuesto.toFixed(2)}</precioTotalSinImpuesto><impuestos>${impuestoXml}</impuestos></detalle>`;
   }).join('');
 
   const importeTotal = parseFloat((totalSinImpuestos + totalIva15).toFixed(2));
 
   let totalConImpuestosXml = '';
   if (baseImponibleIva15 > 0) {
-    totalConImpuestosXml += `
-        <totalImpuesto>
-          <codigo>2</codigo>
-          <codigoPorcentaje>${IVA_15_PORCENTAJE}</codigoPorcentaje>
-          <descuentoAdicional>0.00</descuentoAdicional>
-          <baseImponible>${baseImponibleIva15.toFixed(2)}</baseImponible>
-          <tarifa>15.00</tarifa>
-          <valor>${totalIva15.toFixed(2)}</valor>
-        </totalImpuesto>`;
+    totalConImpuestosXml += `<totalImpuesto><codigo>2</codigo><codigoPorcentaje>${IVA_15_PORCENTAJE}</codigoPorcentaje><descuentoAdicional>0.00</descuentoAdicional><baseImponible>${baseImponibleIva15.toFixed(2)}</baseImponible><tarifa>15.00</tarifa><valor>${totalIva15.toFixed(2)}</valor></totalImpuesto>`;
   }
   if (baseImponibleIva0 > 0) {
-    totalConImpuestosXml += `
-        <totalImpuesto>
-          <codigo>2</codigo>
-          <codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje>
-          <descuentoAdicional>0.00</descuentoAdicional>
-          <baseImponible>${baseImponibleIva0.toFixed(2)}</baseImponible>
-          <tarifa>0.00</tarifa>
-          <valor>0.00</valor>
-        </totalImpuesto>`;
+    totalConImpuestosXml += `<totalImpuesto><codigo>2</codigo><codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje><descuentoAdicional>0.00</descuentoAdicional><baseImponible>${baseImponibleIva0.toFixed(2)}</baseImponible><tarifa>0.00</tarifa><valor>0.00</valor></totalImpuesto>`;
   }
 
-  const infoAdicionalXml = receptor.email ? `
-  <infoAdicional>
-    <campoAdicional nombre="email">${xmlEscape(receptor.email)}</campoAdicional>
-  </infoAdicional>` : '';
+  const infoAdicionalXml = receptor.email
+    ? `<infoAdicional><campoAdicional nombre="email">${xmlEscape(receptor.email)}</campoAdicional></infoAdicional>`
+    : '';
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<factura id="comprobante" version="2.1.0">
-  <infoTributaria>
-    <ambiente>${ambiente}</ambiente>
-    <tipoEmision>1</tipoEmision>
-    <razonSocial>${xmlEscape(emisor.razonSocial)}</razonSocial>
-    <nombreComercial>${xmlEscape(emisor.nombreComercial || emisor.razonSocial)}</nombreComercial>
-    <ruc>${emisor.ruc}</ruc>
-    <claveAcceso>${claveAcceso}</claveAcceso>
-    <codDoc>01</codDoc>
-    <estab>${emisor.estab}</estab>
-    <ptoEmi>${emisor.ptoEmi}</ptoEmi>
-    <secuencial>${secuencial}</secuencial>
-    <dirMatriz>${xmlEscape(emisor.dirMatriz)}</dirMatriz>
-  </infoTributaria>
-  <infoFactura>
-    <fechaEmision>${fecha}</fechaEmision>
-    <dirEstablecimiento>${xmlEscape(emisor.dirEstablecimiento || emisor.dirMatriz)}</dirEstablecimiento>
-    <obligadoContabilidad>${emisor.obligadoContabilidad || 'NO'}</obligadoContabilidad>
-    <tipoIdentificacionComprador>${receptor.tipoId || '05'}</tipoIdentificacionComprador>
-    <razonSocialComprador>${xmlEscape(receptor.razonSocial)}</razonSocialComprador>
-    <identificacionComprador>${receptor.identificacion}</identificacionComprador>
-    <direccionComprador>${xmlEscape(receptor.direccion || 'N/A')}</direccionComprador>
-    <totalSinImpuestos>${totalSinImpuestos.toFixed(2)}</totalSinImpuestos>
-    <totalDescuento>${totalDescuento.toFixed(2)}</totalDescuento>
-    <totalConImpuestos>${totalConImpuestosXml}
-    </totalConImpuestos>
-    <propina>0.00</propina>
-    <importeTotal>${importeTotal.toFixed(2)}</importeTotal>
-    <moneda>DOLAR</moneda>
-    <pagos>
-      <pago>
-        <formaPago>${formaPago}</formaPago>
-        <total>${importeTotal.toFixed(2)}</total>
-        <plazo>0</plazo>
-        <unidadTiempo>dias</unidadTiempo>
-      </pago>
-    </pagos>
-  </infoFactura>
-  <detalles>${detallesXml}
-  </detalles>${infoAdicionalXml}
-</factura>`;
+  // Subtree de <factura> (sin declaracion XML, todo en una linea)
+  const facturaSubtree = `<factura id="comprobante" version="2.1.0"><infoTributaria><ambiente>${ambiente}</ambiente><tipoEmision>1</tipoEmision><razonSocial>${xmlEscape(emisor.razonSocial)}</razonSocial><nombreComercial>${xmlEscape(emisor.nombreComercial || emisor.razonSocial)}</nombreComercial><ruc>${emisor.ruc}</ruc><claveAcceso>${claveAcceso}</claveAcceso><codDoc>01</codDoc><estab>${emisor.estab}</estab><ptoEmi>${emisor.ptoEmi}</ptoEmi><secuencial>${secuencial}</secuencial><dirMatriz>${xmlEscape(emisor.dirMatriz)}</dirMatriz></infoTributaria><infoFactura><fechaEmision>${fecha}</fechaEmision><dirEstablecimiento>${xmlEscape(emisor.dirEstablecimiento || emisor.dirMatriz)}</dirEstablecimiento><obligadoContabilidad>${emisor.obligadoContabilidad || 'NO'}</obligadoContabilidad><tipoIdentificacionComprador>${receptor.tipoId || '05'}</tipoIdentificacionComprador><razonSocialComprador>${xmlEscape(receptor.razonSocial)}</razonSocialComprador><identificacionComprador>${receptor.identificacion}</identificacionComprador><direccionComprador>${xmlEscape(receptor.direccion || 'N/A')}</direccionComprador><totalSinImpuestos>${totalSinImpuestos.toFixed(2)}</totalSinImpuestos><totalDescuento>${totalDescuento.toFixed(2)}</totalDescuento><totalConImpuestos>${totalConImpuestosXml}</totalConImpuestos><propina>0.00</propina><importeTotal>${importeTotal.toFixed(2)}</importeTotal><moneda>DOLAR</moneda><pagos><pago><formaPago>${formaPago}</formaPago><total>${importeTotal.toFixed(2)}</total><plazo>0</plazo><unidadTiempo>dias</unidadTiempo></pago></pagos></infoFactura><detalles>${detallesXml}</detalles>${infoAdicionalXml}</factura>`;
 
-  return { xml, totales: { totalSinImpuestos, totalDescuento, importeTotal } };
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n${facturaSubtree}`;
+
+  return {
+    xml,
+    facturaSubtree,
+    totales: { totalSinImpuestos, totalDescuento, importeTotal }
+  };
 }
 
 // ============================================================
@@ -302,82 +230,109 @@ function sha1Base64Bytes(bytes) {
   return crypto.createHash('sha1').update(bytes).digest('base64');
 }
 
+// BigInteger (forge) -> base64 unsigned big-endian. Para Modulus/Exponent.
+function bigIntegerToBase64(bigInt) {
+  let hex = bigInt.toString(16);
+  if (hex.length % 2 !== 0) hex = '0' + hex;
+  return Buffer.from(hex, 'hex').toString('base64');
+}
+
 /**
  * Firma XAdES-BES segun spec SRI Ecuador.
- * @param xmlSinFirma - el XML factura completo, con id="comprobante" en el root.
+ * Implementacion alineada con bryancalisto/ec-sri-invoice-signer:
+ *  - Issuer en formato RFC2253 (reversed), sin espacios despues de comas.
+ *  - Reference #comprobante con transform enveloped-signature (no C14N).
+ *    El hash se calcula sobre el subtree SIN la signature, y SRI quita
+ *    la signature antes de re-hashear (resuelve el chicken-and-egg).
+ *  - SignedProperties canonicalizado con xmlns:ds ANTES de xmlns:xades
+ *    (orden alfabetico por prefijo, requisito de Inclusive C14N 1.0).
+ *  - KeyInfo incluye X509Certificate + RSAKeyValue (Modulus + Exponent).
+ *  - Prefijo xades: en lugar de etsi: para coincidir con la convencion SRI.
+ *
+ * @param facturaSubtree - subtree <factura id="comprobante"...> compacto, sin firma.
  * @param privateKey - llave privada (forge pki).
  * @param cert - certificado X509 (forge pki).
- * @returns xml firmado con <ds:Signature> insertado dentro del root.
+ * @returns xml firmado completo (con declaracion + factura + signature dentro).
  */
-function firmarXadesBes(xmlSinFirma, privateKey, cert) {
-  // 1. IDs unicos (timestamp + sufijos)
+function firmarXadesBes(facturaSubtree, privateKey, cert) {
+  // 1. IDs unicos
   const ts = Date.now();
   const signatureId = `Signature${ts}`;
-  const signedPropsId = `SignedProperties${ts}`;
+  const signedPropsId = `Signature${ts}-SignedProperties${ts}`;
   const keyInfoId = `Certificate${ts}`;
   const signedInfoId = `Signature-SignedInfo${ts}`;
   const objectId = `Signature${ts}-Object${ts}`;
   const referenceId = `Reference-ID-${ts}`;
   const signatureValueId = `SignatureValue${ts}`;
 
-  // 2. Certificado en base64 (DER)
+  // 2. Certificado DER -> base64
   const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
   const certBase64 = forge.util.encode64(certDer);
 
-  // 3. Hash del certificado (SHA1 base64) - para SignedProperties
-  const certBytes = forge.util.binary.raw.decode(certDer);
-  const certSha1 = sha1Base64Bytes(Buffer.from(certBytes));
+  // 3. Hash SHA1 del certificado (sobre los bytes DER raw)
+  const certSha1 = crypto.createHash('sha1').update(Buffer.from(certDer, 'binary')).digest('base64');
 
-  // 4. Datos del emisor del certificado para SignedProperties
-  const issuer = cert.issuer.attributes.map(a => `${a.shortName}=${a.value}`).join(',');
-  const serial = cert.serialNumber.replace(/^0+/, '') || '0';
-  // Convertir serial hex -> decimal string
+  // 4. Issuer RFC2253: reverse del orden del cert (CN,L,OU,O,C),
+  //    sin espacios despues de las comas. Atributos sin shortName usan OID.
+  const issuer = cert.issuer.attributes
+    .slice()
+    .reverse()
+    .filter(a => a.shortName || a.type)
+    .map(a => `${a.shortName || a.type}=${a.value}`)
+    .join(',');
   const serialDec = BigInt('0x' + cert.serialNumber).toString();
 
-  // 5. Bloque SignedProperties (XAdES)
+  // 5. Modulus + Exponent (BigInteger -> base64 unsigned)
+  const modulusB64 = bigIntegerToBase64(cert.publicKey.n);
+  const exponentB64 = bigIntegerToBase64(cert.publicKey.e);
+
+  // 6. SignedProperties (XAdES, prefijo xades:, compacto)
   const ahora = new Date().toISOString();
-  const signedProperties = `<etsi:SignedProperties Id="${signedPropsId}"><etsi:SignedSignatureProperties><etsi:SigningTime>${ahora}</etsi:SigningTime><etsi:SigningCertificate><etsi:Cert><etsi:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${certSha1}</ds:DigestValue></etsi:CertDigest><etsi:IssuerSerial><ds:X509IssuerName>${xmlEscape(issuer)}</ds:X509IssuerName><ds:X509SerialNumber>${serialDec}</ds:X509SerialNumber></etsi:IssuerSerial></etsi:Cert></etsi:SigningCertificate><etsi:SignedDataObjectProperties><etsi:DataObjectFormat ObjectReference="#${referenceId}"><etsi:Description>contenido comprobante</etsi:Description><etsi:MimeType>text/xml</etsi:MimeType></etsi:DataObjectFormat></etsi:SignedDataObjectProperties></etsi:SignedSignatureProperties></etsi:SignedProperties>`;
+  const signedProperties = `<xades:SignedProperties Id="${signedPropsId}"><xades:SignedSignatureProperties><xades:SigningTime>${ahora}</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${certSha1}</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>${xmlEscape(issuer)}</ds:X509IssuerName><ds:X509SerialNumber>${serialDec}</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#${referenceId}"><xades:Description>contenido comprobante</xades:Description><xades:MimeType>text/xml</xades:MimeType></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedSignatureProperties></xades:SignedProperties>`;
 
-  // 6. Hash del SignedProperties (para Reference dentro de SignedInfo)
-  // Hay que incluir los namespaces del padre al canonicalizar.
-  const signedPropsConNs = signedProperties.replace(
-    '<etsi:SignedProperties ',
-    '<etsi:SignedProperties xmlns:etsi="http://uri.etsi.org/01903/v1.3.2#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" '
+  // 7. Canonicalizar SignedProperties. Inclusive C14N 1.0 ordena las
+  //    declaraciones xmlns alfabeticamente por prefijo: ds antes que xades.
+  const signedPropsCanon = signedProperties.replace(
+    '<xades:SignedProperties ',
+    '<xades:SignedProperties xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" '
   );
-  const signedPropsSha1 = sha1Base64(signedPropsConNs);
+  const signedPropsSha1 = sha1Base64(signedPropsCanon);
 
-  // 7. Hash del KeyInfo
-  const keyInfoXml = `<ds:KeyInfo Id="${keyInfoId}"><ds:X509Data><ds:X509Certificate>\n${certBase64}\n</ds:X509Certificate></ds:X509Data><ds:KeyValue><ds:RSAKeyValue><ds:Modulus>\n${forge.util.encode64(forge.util.hexToBytes(privateKey.n.toString(16)))}\n</ds:Modulus><ds:Exponent>${forge.util.encode64(forge.util.hexToBytes(privateKey.e.toString(16)))}</ds:Exponent></ds:RSAKeyValue></ds:KeyValue></ds:KeyInfo>`;
-  const keyInfoConNs = keyInfoXml.replace(
+  // 8. KeyInfo: X509Data + KeyValue (SRI rechaza si falta cualquiera).
+  const keyInfoXml = `<ds:KeyInfo Id="${keyInfoId}"><ds:X509Data><ds:X509Certificate>${certBase64}</ds:X509Certificate></ds:X509Data><ds:KeyValue><ds:RSAKeyValue><ds:Modulus>${modulusB64}</ds:Modulus><ds:Exponent>${exponentB64}</ds:Exponent></ds:RSAKeyValue></ds:KeyValue></ds:KeyInfo>`;
+  const keyInfoCanon = keyInfoXml.replace(
     '<ds:KeyInfo ',
     '<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#" '
   );
-  const keyInfoSha1 = sha1Base64(keyInfoConNs);
+  const keyInfoSha1 = sha1Base64(keyInfoCanon);
 
-  // 8. Hash del comprobante (todo el XML factura raw, sin pretty-print)
-  // El URI #comprobante apunta al root <factura id="comprobante">
-  const comprobanteSha1 = sha1Base64(xmlSinFirma);
+  // 9. Hash del subtree <factura> sin firma. Cuando SRI dereferencia
+  //    URI="#comprobante" aplica enveloped-signature (quita ds:Signature)
+  //    y obtiene el mismo subtree que aqui hasheamos.
+  const comprobanteSha1 = sha1Base64(facturaSubtree);
 
-  // 9. Bloque SignedInfo
-  const signedInfo = `<ds:SignedInfo Id="${signedInfoId}"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></ds:CanonicalizationMethod><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"></ds:SignatureMethod><ds:Reference Id="SignedPropertiesID${ts}" Type="http://uri.etsi.org/01903#SignedProperties" URI="#${signedPropsId}"><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${signedPropsSha1}</ds:DigestValue></ds:Reference><ds:Reference URI="#${keyInfoId}"><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${keyInfoSha1}</ds:DigestValue></ds:Reference><ds:Reference Id="${referenceId}" URI="#comprobante"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></ds:Transform></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${comprobanteSha1}</ds:DigestValue></ds:Reference></ds:SignedInfo>`;
+  // 10. SignedInfo. Solo el Reference #comprobante lleva <ds:Transforms>
+  //     y la unica transform es enveloped-signature.
+  const signedInfo = `<ds:SignedInfo Id="${signedInfoId}"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></ds:CanonicalizationMethod><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"></ds:SignatureMethod><ds:Reference Id="SignedPropertiesID${ts}" Type="http://uri.etsi.org/01903#SignedProperties" URI="#${signedPropsId}"><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${signedPropsSha1}</ds:DigestValue></ds:Reference><ds:Reference URI="#${keyInfoId}"><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${keyInfoSha1}</ds:DigestValue></ds:Reference><ds:Reference Id="${referenceId}" URI="#comprobante"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></ds:Transform></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></ds:DigestMethod><ds:DigestValue>${comprobanteSha1}</ds:DigestValue></ds:Reference></ds:SignedInfo>`;
 
-  // 10. Canonicalizar SignedInfo y firmar con RSA-SHA1
-  const signedInfoConNs = signedInfo.replace(
+  // 11. Canonicalizar SignedInfo (xmlns:ds heredado) y firmar RSA-SHA1.
+  const signedInfoCanon = signedInfo.replace(
     '<ds:SignedInfo ',
     '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#" '
   );
   const md = forge.md.sha1.create();
-  md.update(signedInfoConNs, 'utf8');
+  md.update(signedInfoCanon, 'utf8');
   const signatureBin = privateKey.sign(md);
   const signatureValue = forge.util.encode64(signatureBin);
 
-  // 11. Ensamblar el bloque <ds:Signature> completo
-  const signatureBlock = `<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:etsi="http://uri.etsi.org/01903/v1.3.2#" Id="${signatureId}">${signedInfo}<ds:SignatureValue Id="${signatureValueId}">\n${signatureValue}\n</ds:SignatureValue>${keyInfoXml}<ds:Object Id="${objectId}"><etsi:QualifyingProperties Target="#${signatureId}">${signedProperties}</etsi:QualifyingProperties></ds:Object></ds:Signature>`;
+  // 12. Ensamblar <ds:Signature>. xmlns:ds y xmlns:xades en el elemento
+  //     raiz; los hijos los heredan sin necesidad de redeclararlos.
+  const signatureBlock = `<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="${signatureId}">${signedInfo}<ds:SignatureValue Id="${signatureValueId}">${signatureValue}</ds:SignatureValue>${keyInfoXml}<ds:Object Id="${objectId}"><xades:QualifyingProperties Target="#${signatureId}">${signedProperties}</xades:QualifyingProperties></ds:Object></ds:Signature>`;
 
-  // 12. Insertar el <ds:Signature> antes del </factura>
-  const xmlFirmado = xmlSinFirma.replace('</factura>', `${signatureBlock}</factura>`);
+  // 13. Insertar <ds:Signature> antes del </factura>
+  const facturaFirmada = facturaSubtree.replace('</factura>', `${signatureBlock}</factura>`);
 
-  return xmlFirmado;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${facturaFirmada}`;
 }
 
 // ============================================================
@@ -558,16 +513,16 @@ export default async function handler(req, res) {
       tipoEmision: '1'
     });
 
-    // XML sin firma
-    const { xml: xmlSinFirma, totales } = buildFacturaXml({
+    // Subtree de la factura (compacto, sin pretty-print, sin XML decl)
+    const { facturaSubtree, totales } = buildFacturaXml({
       emisor, receptor, items, secuencial, formaPago, fechaEmision: fecha,
       claveAcceso: claveAccesoGen, ambiente
     });
 
-    // Firma XAdES-BES
+    // Firma XAdES-BES sobre el subtree
     const p12Buffer = decryptP12(p12Encrypted);
     const { privateKey, cert } = extraerClaveCertificado(p12Buffer, p12Password);
-    const xmlFirmado = firmarXadesBes(xmlSinFirma, privateKey, cert);
+    const xmlFirmado = firmarXadesBes(facturaSubtree, privateKey, cert);
 
     // Envio a SRI Recepcion
     const soapRecepcion = buildSoapRecepcion(xmlFirmado);
