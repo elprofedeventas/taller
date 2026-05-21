@@ -71,6 +71,8 @@ export default function ModalFacturacion({
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
+  const [errorMensajes, setErrorMensajes] = useState([]);
+  const [errorDetalle, setErrorDetalle] = useState(null);
   const [resultado, setResultado] = useState(null);
 
   useEffect(() => {
@@ -108,8 +110,15 @@ export default function ModalFacturacion({
 
   async function emitir() {
     const err = validar();
-    if (err) { setError(err); return; }
+    if (err) {
+      setError(err);
+      setErrorMensajes([]);
+      setErrorDetalle(null);
+      return;
+    }
     setError(null);
+    setErrorMensajes([]);
+    setErrorDetalle(null);
     setEnviando(true);
     try {
       const data = await emitirFactura(auth.session, {
@@ -122,7 +131,9 @@ export default function ModalFacturacion({
       setResultado(data);
       if (onFacturaEmitida) onFacturaEmitida(data);
     } catch (e) {
-      setError(e.message + (e.detalle ? ` (${JSON.stringify(e.detalle).slice(0, 150)})` : ''));
+      setError(e.message);
+      setErrorMensajes(Array.isArray(e.mensajes) ? e.mensajes : []);
+      setErrorDetalle(e.detalle || null);
     } finally {
       setEnviando(false);
     }
@@ -131,6 +142,8 @@ export default function ModalFacturacion({
   function cerrar() {
     setEnviando(false);
     setError(null);
+    setErrorMensajes([]);
+    setErrorDetalle(null);
     setResultado(null);
     if (onCerrar) onCerrar();
   }
@@ -400,7 +413,30 @@ export default function ModalFacturacion({
                 </div>
               </section>
 
-              {error && <p className={styles.error} role="alert">{error}</p>}
+              {error && (
+                <div className={styles.error} role="alert">
+                  <p className={styles.errorTitle}>{error}</p>
+                  {errorMensajes.length > 0 && (
+                    <ul className={styles.errorList}>
+                      {errorMensajes.map((m, i) => (
+                        <li key={i} className={styles.errorItem}>
+                          <strong>[{m.identificador}] {m.mensaje}</strong>
+                          {m.informacionAdicional && (
+                            <div className={styles.errorInfo}>{m.informacionAdicional}</div>
+                          )}
+                          {m.tipo && <span className={styles.errorTipo}>{m.tipo}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {errorDetalle && errorMensajes.length === 0 && (
+                    <details className={styles.errorDetails}>
+                      <summary>Detalle tecnico</summary>
+                      <pre className={styles.errorPre}>{errorDetalle}</pre>
+                    </details>
+                  )}
+                </div>
+              )}
 
               <div className={styles.actions}>
                 <button

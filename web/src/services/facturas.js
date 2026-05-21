@@ -145,12 +145,20 @@ export async function emitirFactura(session, {
     data = await res.json();
 
     if (!res.ok || !data.ok) {
+      const errorSRI = {
+        error: data?.error || 'Error desconocido',
+        estado: data?.estado || null,
+        mensajes: Array.isArray(data?.mensajes) ? data.mensajes : [],
+        detalle: data?.detalle || null
+      };
       await updateDoc(facturaRef, withActor(session, {
         estado: 'RECHAZADA',
-        errorSRI: data?.detalle || data?.mensajes || data?.error || 'Error desconocido'
+        errorSRI
       }));
       const err = new Error(data?.error || 'El SRI rechazo el comprobante.');
-      err.detalle = data?.detalle || data?.mensajes || null;
+      err.mensajes = errorSRI.mensajes;
+      err.detalle = errorSRI.detalle;
+      err.estado = errorSRI.estado;
       throw err;
     }
   } catch (e) {

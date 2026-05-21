@@ -255,8 +255,77 @@
   font-size: 13px;
   margin: 0;
   background: #FEE2E2;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.errorTitle {
+  margin: 0;
+  font-weight: 600;
+}
+
+.errorList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.errorItem {
+  background: var(--bg-surface);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.errorInfo {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-style: italic;
+}
+
+.errorTipo {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--danger);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+  padding: 2px 6px;
+  background: #FEE2E2;
+  border-radius: 999px;
+}
+
+.errorDetails {
+  font-size: 11px;
+}
+
+.errorDetails summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.errorPre {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-size: 10px;
+  font-family: ui-monospace, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .actions {

@@ -170,15 +170,35 @@ export default function PantallaFacturacion({ navigate, auth }) {
               )}
               {!cargandoDetalle && facturaDetalle && facturaDetalle.estado !== 'AUTORIZADA' && (
                 <div className={styles.rechazadaBox}>
-                  <p>
-                    <strong>Estado: {facturaDetalle.estado}</strong>
-                  </p>
-                  {facturaDetalle.errorSRI && (
-                    <pre className={styles.errorDetalle}>
-                      {typeof facturaDetalle.errorSRI === 'string'
-                        ? facturaDetalle.errorSRI
-                        : JSON.stringify(facturaDetalle.errorSRI, null, 2)}
-                    </pre>
+                  <p><strong>Estado: {facturaDetalle.estado}</strong></p>
+                  {facturaDetalle.errorSRI && typeof facturaDetalle.errorSRI === 'object' && (
+                    <>
+                      {facturaDetalle.errorSRI.error && (
+                        <p className={styles.errorHeadline}>{facturaDetalle.errorSRI.error}</p>
+                      )}
+                      {Array.isArray(facturaDetalle.errorSRI.mensajes) && facturaDetalle.errorSRI.mensajes.length > 0 && (
+                        <ul className={styles.errorList}>
+                          {facturaDetalle.errorSRI.mensajes.map((m, i) => (
+                            <li key={i} className={styles.errorItem}>
+                              <strong>[{m.identificador}] {m.mensaje}</strong>
+                              {m.informacionAdicional && (
+                                <div className={styles.errorInfo}>{m.informacionAdicional}</div>
+                              )}
+                              {m.tipo && <span className={styles.errorTipo}>{m.tipo}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {facturaDetalle.errorSRI.detalle && (
+                        <details className={styles.errorDetails}>
+                          <summary>Detalle tecnico (raw)</summary>
+                          <pre className={styles.errorPre}>{facturaDetalle.errorSRI.detalle}</pre>
+                        </details>
+                      )}
+                    </>
+                  )}
+                  {facturaDetalle.errorSRI && typeof facturaDetalle.errorSRI === 'string' && (
+                    <pre className={styles.errorPre}>{facturaDetalle.errorSRI}</pre>
                   )}
                 </div>
               )}
