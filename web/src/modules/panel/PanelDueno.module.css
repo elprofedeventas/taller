@@ -113,14 +113,20 @@
 
 .mechanicRow {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 2px;
   font-size: 13px;
   color: var(--text-primary);
   counter-increment: mech;
 }
 
-.mechanicRow::before {
+.mechanicMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.mechanicMain::before {
   content: counter(mech) ". ";
   color: var(--text-secondary);
   margin-right: 4px;
@@ -129,4 +135,10 @@
 .mechanicCount {
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+.mechanicMeta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding-left: 18px;
 }

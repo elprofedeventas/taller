@@ -71,14 +71,21 @@ export default function OTDetail({ otId, navigate, auth }) {
     return () => { cancelled = true; };
   }, [otId]);
 
-  const computedTotals = useMemo(
-    () => calculateTotals(tasks, parts),
-    [tasks, parts]
-  );
-
   // Permisos basados en rol + estado de la OT
   const isMechanic = auth.role === 'mechanic';
   const isOwnerOrManager = auth.role === 'owner' || auth.role === 'manager';
+
+  // costoHora del mecanico asignado (para calcular margen). Lookup en la
+  // lista de mecanicos cargados; ausencia -> 0 (no afecta margen).
+  const mecanicoAsignado = ot
+    ? mechanics.find(m => m.id === ot.mechanicId) || null
+    : null;
+  const costoHoraMecanico = Number(mecanicoAsignado?.costoHora || 0);
+
+  const computedTotals = useMemo(
+    () => calculateTotals(tasks, parts, costoHoraMecanico),
+    [tasks, parts, costoHoraMecanico]
+  );
 
   const isMyOT = ot && ot.mechanicId === auth.userId;
   const isFinal = ot && FINAL_STATUSES.has(ot.status);
@@ -175,11 +182,18 @@ export default function OTDetail({ otId, navigate, auth }) {
     try {
       const patch = { tasks, parts };
       // Solo owner/manager pueden persistir totales (rules Firestore).
+      // Si hay costoHora del mecanico o costos en parts, tambien persistimos
+      // los campos de rentabilidad para que el Panel los pueda agregar
+      // por mes sin tener que recalcular desde el mecanico.
       if (isOwnerOrManager) {
-        const totals = calculateTotals(tasks, parts);
+        const totals = calculateTotals(tasks, parts, costoHoraMecanico);
         patch.totalLabor = totals.totalLabor;
         patch.totalParts = totals.totalParts;
         patch.totalGeneral = totals.totalGeneral;
+        patch.costoRepuestos = totals.costoRepuestos;
+        patch.costoManoObra = totals.costoManoObra;
+        patch.costoTotal = totals.costoTotal;
+        patch.margenBruto = totals.margenBruto;
       }
       await updateOT(auth.session, otId, patch);
       await refreshOT();
@@ -485,6 +499,19 @@ export default function OTDetail({ otId, navigate, auth }) {
               min="0"
               disabled={!canEditLists || saving}
             />
+            {isOwnerOrManager && (
+              <input
+                type="number"
+                className={`${styles.lineInput} ${styles.lineSmall} ${styles.lineCosto}`}
+                placeholder="Costo"
+                title="Costo unitario (lo que pagamos al proveedor)"
+                value={p.costo || ''}
+                onChange={e => handleUpdatePart(i, { costo: e.target.value })}
+                step="0.01"
+                min="0"
+                disabled={!canEditLists || saving}
+              />
+            )}
             <span className={styles.lineTotal}>
               ${Number(p.total || 0).toFixed(2)}
             </span>
@@ -525,6 +552,30 @@ export default function OTDetail({ otId, navigate, auth }) {
             Los totales mostrados se calculan en vivo. Se persistiran al
             cierre con cobro o cuando un manager guarde la OT.
           </p>
+        )}
+
+        {isOwnerOrManager && computedTotals.costoTotal > 0 && (
+          <div className={styles.rentabilidadBox}>
+            <div className={styles.rentRow}>
+              <span>Costo repuestos</span>
+              <span>${computedTotals.costoRepuestos.toFixed(2)}</span>
+            </div>
+            <div className={styles.rentRow}>
+              <span>Costo mano de obra</span>
+              <span>${computedTotals.costoManoObra.toFixed(2)}</span>
+            </div>
+            <div className={styles.rentRow}>
+              <span>Costo total</span>
+              <span>${computedTotals.costoTotal.toFixed(2)}</span>
+            </div>
+            <div className={styles.rentRowTotal}>
+              <span>Margen bruto</span>
+              <span>
+                ${computedTotals.margenBruto.toFixed(2)}{' '}
+                <small>({computedTotals.margenPorcentaje.toFixed(0)}%)</small>
+              </span>
+            </div>
+          </div>
         )}
       </section>
 

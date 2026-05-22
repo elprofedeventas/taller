@@ -236,16 +236,38 @@ export function readyForCobroQuery() {
 }
 
 /**
- * Calcula totalLabor, totalParts y totalGeneral desde las listas
- * tasks y parts. Cada item espera la propiedad numerica .total.
+ * Calcula totalLabor, totalParts, totalGeneral, costos y margen.
+ *   - costoHoraMecanico: USD/hora del mecanico asignado (0 si no aplica).
+ *   - Cada part puede tener .costo (precio que pagamos al proveedor).
+ * Si no hay datos de costo (ni p.costo ni costoHoraMecanico), costoTotal=0
+ * y margenBruto = totalGeneral.
  */
-export function calculateTotals(tasks, parts) {
+export function calculateTotals(tasks, parts, costoHoraMecanico = 0) {
   const totalLabor = (tasks || []).reduce((s, t) => s + Number(t.total || 0), 0);
   const totalParts = (parts || []).reduce((s, p) => s + Number(p.total || 0), 0);
+
+  const costoRepuestos = (parts || []).reduce(
+    (s, p) => s + (Number(p.costo || 0) * Number(p.cantidad || 0)), 0
+  );
+  const costoManoObra = (tasks || []).reduce(
+    (s, t) => s + (Number(t.horas || 0) * Number(costoHoraMecanico || 0)), 0
+  );
+  const costoTotal = round2(costoRepuestos + costoManoObra);
+  const totalGeneral = round2(totalLabor + totalParts);
+  const margenBruto = round2(totalGeneral - costoTotal);
+  const margenPorcentaje = totalGeneral > 0
+    ? round2((margenBruto / totalGeneral) * 100)
+    : 0;
+
   return {
     totalLabor: round2(totalLabor),
     totalParts: round2(totalParts),
-    totalGeneral: round2(totalLabor + totalParts)
+    totalGeneral,
+    costoRepuestos: round2(costoRepuestos),
+    costoManoObra: round2(costoManoObra),
+    costoTotal,
+    margenBruto,
+    margenPorcentaje
   };
 }
 

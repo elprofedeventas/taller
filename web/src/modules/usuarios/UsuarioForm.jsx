@@ -19,6 +19,7 @@ export default function UsuarioForm({ usuarioId, navigate, auth }) {
   const [active, setActive] = useState(true);
   const [pin, setPin] = useState('');
   const [newPin, setNewPin] = useState('');
+  const [costoHora, setCostoHora] = useState('');
 
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,7 @@ export default function UsuarioForm({ usuarioId, navigate, auth }) {
           setName(u.name || '');
           setRole(u.role || 'mechanic');
           setActive(u.active !== false);
+          setCostoHora(u.costoHora != null ? String(u.costoHora) : '');
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -101,6 +103,11 @@ export default function UsuarioForm({ usuarioId, navigate, auth }) {
       if (!isSelf) {
         patch.role = role;
         patch.active = active;
+      }
+      // costoHora aplica solo a mecanicos; lo persiste el owner en cualquier
+      // estado del form (incluye el cero como dato valido).
+      if (role === 'mechanic') {
+        patch.costoHora = Number(costoHora) || 0;
       }
       await updateUser(auth.session, usuarioId, patch);
       if (newPin) {
@@ -179,6 +186,26 @@ export default function UsuarioForm({ usuarioId, navigate, auth }) {
               disabled={saving || isSelf}
             />
             Activo
+          </label>
+        )}
+
+        {isEdit && role === 'mechanic' && (
+          <label className={styles.label}>
+            Costo por hora (USD)
+            <input
+              type="number"
+              className={styles.input}
+              value={costoHora}
+              onChange={e => setCostoHora(e.target.value)}
+              disabled={saving}
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+            />
+            <span className={styles.hint}>
+              Usado para calcular el margen bruto de cada OT.
+              Visible solo en el panel del dueno.
+            </span>
           </label>
         )}
 

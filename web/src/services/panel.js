@@ -66,7 +66,8 @@ export async function loadPanelKPIs({ year, month }) {
   const closedOTs = closedSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   const closedCount = closedOTs.length;
 
-  // Top mecanicos por OTs cerradas del mes
+  // Top mecanicos por OTs cerradas del mes. Acumulan tambien facturacion
+  // y margen bruto (cuando esos campos estan persistidos en la OT).
   const mechanicCounts = {};
   for (const ot of closedOTs) {
     if (!ot.mechanicId) continue;
@@ -74,14 +75,31 @@ export async function loadPanelKPIs({ year, month }) {
       mechanicCounts[ot.mechanicId] = {
         mechanicId: ot.mechanicId,
         mechanicName: ot.mechanicName || '(sin nombre)',
-        count: 0
+        count: 0,
+        facturado: 0,
+        margen: 0
       };
     }
     mechanicCounts[ot.mechanicId].count += 1;
+    mechanicCounts[ot.mechanicId].facturado += Number(ot.totalGeneral || 0);
+    mechanicCounts[ot.mechanicId].margen += Number(ot.margenBruto || 0);
   }
   const topMechanics = Object.values(mechanicCounts)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
+
+  // Margen bruto agregado del mes: solo suma OTs entregadas con margenBruto
+  // persistido (> 0). OTs sin datos de costo se ignoran en este KPI.
+  const margenBrutoMes = closedOTs.reduce(
+    (s, ot) => s + Number(ot.margenBruto || 0), 0
+  );
+  const facturadoCerradoMes = closedOTs.reduce(
+    (s, ot) => s + Number(ot.totalGeneral || 0), 0
+  );
+  const margenPorcentajeMes = facturadoCerradoMes > 0
+    ? Math.round((margenBrutoMes / facturadoCerradoMes) * 100)
+    : 0;
+  const otsConMargen = closedOTs.filter(ot => Number(ot.margenBruto || 0) > 0).length;
 
   // Clientes recurrentes vs nuevos del mes
   const uniqueClientIds = [...new Set(closedOTs.map(o => o.clientId).filter(Boolean))];
@@ -109,6 +127,9 @@ export async function loadPanelKPIs({ year, month }) {
     closedCount,
     topMechanics,
     newClientCount,
-    returningClientCount
+    returningClientCount,
+    margenBrutoMes,
+    margenPorcentajeMes,
+    otsConMargen
   };
 }

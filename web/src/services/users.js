@@ -53,6 +53,7 @@ export async function updateUser(session, id, fields) {
   if (fields.role !== undefined) patch.role = fields.role;
   if (fields.active !== undefined) patch.active = !!fields.active;
   if (fields.locationId !== undefined) patch.locationId = fields.locationId || null;
+  if (fields.costoHora !== undefined) patch.costoHora = Number(fields.costoHora) || 0;
 
   await updateDoc(doc(db, COLLECTION, id), withActor(session, patch));
 }

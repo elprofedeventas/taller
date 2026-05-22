@@ -103,15 +103,40 @@ export default function PanelDueno({ navigate, auth }) {
               <ol className={styles.mechanicList}>
                 {kpis.topMechanics.map(m => (
                   <li key={m.mechanicId} className={styles.mechanicRow}>
-                    <span>{m.mechanicName}</span>
-                    <span className={styles.mechanicCount}>
-                      {m.count} OT{m.count === 1 ? '' : 's'}
-                    </span>
+                    <div className={styles.mechanicMain}>
+                      <span>{m.mechanicName}</span>
+                      <span className={styles.mechanicCount}>
+                        {m.count} OT{m.count === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    {(m.facturado > 0 || m.margen > 0) && (
+                      <div className={styles.mechanicMeta}>
+                        ${m.facturado.toFixed(2)} facturado
+                        {m.margen > 0 && (
+                          <>
+                            {' · '}${m.margen.toFixed(2)} margen
+                            {' ('}{Math.round((m.margen / m.facturado) * 100)}%{')'}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ol>
             )}
           </div>
+
+          {kpis.margenBrutoMes > 0 && (
+            <div className={styles.kpiCard}>
+              <span className={styles.kpiLabel}>Margen bruto del mes</span>
+              <span className={styles.kpiBig}>
+                ${kpis.margenBrutoMes.toFixed(2)}
+              </span>
+              <span className={styles.kpiSub}>
+                {kpis.margenPorcentajeMes}% sobre lo facturado · {kpis.otsConMargen} OT{kpis.otsConMargen === 1 ? '' : 's'} con costos cargados
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
