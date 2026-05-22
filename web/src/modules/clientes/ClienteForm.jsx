@@ -14,6 +14,7 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [identificacion, setIdentificacion] = useState('');
+  const [direccion, setDireccion] = useState('');
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -32,6 +33,7 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
           setPhone(c.phone);
           setEmail(c.email || '');
           setIdentificacion(c.identificacion || '');
+          setDireccion(c.direccion || '');
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -56,12 +58,12 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
       const tipoId = derivarTipoId(identificacion);
       if (isEdit) {
         await updateClient(auth.session, clienteId, {
-          name, phone, email, identificacion, tipoId
+          name, phone, email, identificacion, tipoId, direccion
         });
         navigate('cliente-detail', { id: clienteId });
       } else {
         const c = await createClient(auth.session, {
-          name, phone, email, identificacion, tipoId
+          name, phone, email, identificacion, tipoId, direccion
         });
         navigate('cliente-detail', { id: c.id });
       }
@@ -128,6 +130,18 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
             placeholder="10 digitos cedula o 13 digitos RUC"
             inputMode="numeric"
             maxLength={13}
+          />
+        </label>
+
+        <label className={styles.label}>
+          Direccion (opcional, para facturacion)
+          <input
+            type="text"
+            className={styles.input}
+            value={direccion}
+            onChange={e => setDireccion(e.target.value)}
+            disabled={saving}
+            placeholder="Calle, numero, sector, ciudad"
           />
         </label>
 

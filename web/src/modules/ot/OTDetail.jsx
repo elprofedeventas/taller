@@ -7,6 +7,7 @@ import { getClient, updateClient } from '../../services/clientes';
 import { listMechanics } from '../../services/users';
 import { listCatalogo } from '../../services/catalogo';
 import { getTallerConfig } from '../../services/config';
+import { normalizePhone } from '../../utils/normalizePhone';
 import { WhatsAppButton } from '../../components/WhatsAppButton';
 import { templatesByIds } from '../../services/whatsapp';
 import BotonFacturar from '../facturacion/BotonFacturar';
@@ -685,26 +686,35 @@ export default function OTDetail({ otId, navigate, auth }) {
             label="Emitir factura electronica"
             variant="primary"
             onFacturaEmitida={async (data, finalReceptor) => {
-              // Backfill cliente: si el receptor termino con cedula nueva
-              // o phone/email que el cliente no tenia, actualizar el cliente
-              // para que la proxima factura ya venga precargada.
+              // Backfill cliente: solo si el campo estaba VACIO en el cliente
+              // (en el modal, los campos pre-cargados estan bloqueados, asi
+              // que aqui solo llegan datos nuevos que llenaron lo que faltaba).
+              // Asi se evita reemplazar datos correctos del cliente por error.
               if (client && finalReceptor) {
                 const cambios = {};
-                if (finalReceptor.identificacion && finalReceptor.identificacion !== (client.identificacion || '')) {
+                if (!client.identificacion && finalReceptor.identificacion) {
                   cambios.identificacion = finalReceptor.identificacion;
                   cambios.tipoId = finalReceptor.tipoId || '05';
                 }
-                if (finalReceptor.email && finalReceptor.email !== (client.email || '')) {
+                if (!client.email && finalReceptor.email) {
                   cambios.email = finalReceptor.email;
+                }
+                if (!client.direccion && finalReceptor.direccion) {
+                  cambios.direccion = finalReceptor.direccion;
+                }
+                const normReceptorPhone = normalizePhone(finalReceptor.phone || '');
+                if (!client.phone && normReceptorPhone) {
+                  cambios.phone = normReceptorPhone;
                 }
                 if (Object.keys(cambios).length > 0) {
                   try {
                     await updateClient(auth.session, client.id, {
                       name: client.name,
-                      phone: client.phone,
+                      phone: cambios.phone !== undefined ? cambios.phone : client.phone,
                       email: cambios.email !== undefined ? cambios.email : (client.email || null),
                       identificacion: cambios.identificacion !== undefined ? cambios.identificacion : (client.identificacion || ''),
-                      tipoId: cambios.tipoId !== undefined ? cambios.tipoId : (client.tipoId || '05')
+                      tipoId: cambios.tipoId !== undefined ? cambios.tipoId : (client.tipoId || '05'),
+                      direccion: cambios.direccion !== undefined ? cambios.direccion : (client.direccion || '')
                     });
                   } catch (_) {}
                 }

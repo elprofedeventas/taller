@@ -414,3 +414,25 @@
   font-style: italic;
   margin: 4px 0 0;
 }
+
+.lockHint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-app);
+  border-left: 3px solid var(--primary);
+  padding: 8px 10px;
+  border-radius: 2px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.inputLocked {
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.inputLocked:focus {
+  outline: none;
+  border-color: var(--border-medium);
+}

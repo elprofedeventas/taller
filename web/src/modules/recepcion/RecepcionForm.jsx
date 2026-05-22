@@ -62,6 +62,7 @@ export default function RecepcionForm({
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientIdentificacion, setNewClientIdentificacion] = useState('');
+  const [newClientDireccion, setNewClientDireccion] = useState('');
 
   // Cedula/RUC inline: visible siempre que haya cliente seleccionado.
   // Para clientes existentes sin identificacion (creados antes del
@@ -288,7 +289,8 @@ export default function RecepcionForm({
         phone: newClientPhone,
         email: newClientEmail,
         identificacion: newClientIdentificacion,
-        tipoId: derivarTipoId(newClientIdentificacion)
+        tipoId: derivarTipoId(newClientIdentificacion),
+        direccion: newClientDireccion
       });
       setClient(c);
       setClientVehicles([]);
@@ -417,6 +419,7 @@ export default function RecepcionForm({
     setNewClientPhone('');
     setNewClientEmail('');
     setNewClientIdentificacion('');
+    setNewClientDireccion('');
     setClientIdentificacion('');
     setNewVehPlaca('');
     setNewVehMarca('');
@@ -669,6 +672,17 @@ export default function RecepcionForm({
                 placeholder="10 digitos cedula o 13 digitos RUC"
                 inputMode="numeric"
                 maxLength={13}
+              />
+            </label>
+            <label className={styles.label}>
+              Direccion (opcional, para facturacion)
+              <input
+                type="text"
+                className={styles.input}
+                value={newClientDireccion}
+                onChange={e => setNewClientDireccion(e.target.value)}
+                disabled={processing}
+                placeholder="Calle, numero, sector, ciudad"
               />
             </label>
             <label className={styles.label}>

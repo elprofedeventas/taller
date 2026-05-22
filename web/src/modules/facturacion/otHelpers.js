@@ -49,19 +49,22 @@ export function otToFacturaItems(ot) {
 
 /**
  * Convierte denorm de OT + cliente fresco a receptor SRI.
- *   - Prefiere la denorm de la OT (porque puede tener overrides hechos
- *     en el momento de crear la OT, ej. cedula completada inline).
- *   - Cae al cliente fresco para los campos vacios en la OT (caso
- *     comun: OT vieja sin email/phone, cliente ya tiene esos datos).
+ *   - Prefiere el cliente fresco (puede haber sido actualizado despues
+ *     de crear la OT, especialmente para datos opcionales como direccion
+ *     o email que se completan al emitir la primera factura).
+ *   - Cae a la denorm de la OT si el cliente no tiene el campo.
+ *
+ * Asi, dos facturas del mismo cliente siempre tienen los mismos datos
+ * fiscales — la unica forma de cambiarlos es editar al cliente.
  */
 export function otToReceptor(ot, client = null) {
   const c = client || {};
   return {
-    tipoId: ot.clientTipoId || c.tipoId || '05',
-    identificacion: ot.clientIdentificacion || c.identificacion || '',
-    razonSocial: ot.clientName || c.name || '',
-    direccion: ot.clientDireccion || c.direccion || '',
-    email: ot.clientEmail || c.email || '',
-    phone: formatPhoneForDisplay(ot.clientPhone || c.phone || '')
+    tipoId: c.tipoId || ot.clientTipoId || '05',
+    identificacion: c.identificacion || ot.clientIdentificacion || '',
+    razonSocial: c.name || ot.clientName || '',
+    direccion: c.direccion || ot.clientDireccion || '',
+    email: c.email || ot.clientEmail || '',
+    phone: formatPhoneForDisplay(c.phone || ot.clientPhone || '')
   };
 }

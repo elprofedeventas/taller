@@ -70,6 +70,19 @@ export default function ModalFacturacion({
   const [items, setItems] = useState(itemsIniciales || [{ ...ITEM_VACIO }]);
   const [formaPago, setFormaPago] = useState('01');
   const [descripcion, setDescripcion] = useState('');
+  // Modo consumidor final: cuando esta activo, los locks no aplican porque
+  // los datos no representan a un cliente registrado.
+  const [consumidorFinalMode, setConsumidorFinalMode] = useState(false);
+
+  // Un campo esta bloqueado si vino pre-cargado del cliente (no vacio en
+  // receptorInicial) y no estamos en modo consumidor final. Asi se evita
+  // que dos facturas del mismo cliente tengan datos fiscales distintos.
+  function isLocked(field) {
+    if (consumidorFinalMode) return false;
+    if (!receptorInicial) return false;
+    const v = receptorInicial[field];
+    return v != null && String(v).trim() !== '';
+  }
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
@@ -95,6 +108,14 @@ export default function ModalFacturacion({
 
   function usarConsumidorFinal() {
     setReceptor({ ...CONSUMIDOR_FINAL });
+    setConsumidorFinalMode(true);
+  }
+
+  function restaurarCliente() {
+    setReceptor(
+      receptorInicial || { tipoId: '05', identificacion: '', razonSocial: '', direccion: '', email: '', phone: '' }
+    );
+    setConsumidorFinalMode(false);
   }
 
   function validar() {
@@ -203,24 +224,42 @@ export default function ModalFacturacion({
               <section className={styles.section}>
                 <div className={styles.sectionHeader}>
                   <h3 className={styles.sectionTitle}>Comprador</h3>
-                  <button
-                    type="button"
-                    className={styles.linkBtn}
-                    onClick={usarConsumidorFinal}
-                    disabled={enviando}
-                  >
-                    Usar consumidor final
-                  </button>
+                  {consumidorFinalMode && receptorInicial ? (
+                    <button
+                      type="button"
+                      className={styles.linkBtn}
+                      onClick={restaurarCliente}
+                      disabled={enviando}
+                    >
+                      Volver a datos del cliente
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.linkBtn}
+                      onClick={usarConsumidorFinal}
+                      disabled={enviando}
+                    >
+                      Usar consumidor final
+                    </button>
+                  )}
                 </div>
+
+                {receptorInicial && !consumidorFinalMode && (
+                  <p className={styles.lockHint}>
+                    Los datos del cliente estan bloqueados para evitar facturar al mismo cliente con datos distintos.
+                    Para editarlos, ve a Clientes. Los campos vacios se pueden completar aqui y quedaran guardados en el cliente.
+                  </p>
+                )}
 
                 <div className={styles.row}>
                   <label className={`${styles.label} ${styles.col3}`}>
                     Tipo ID
                     <select
-                      className={styles.input}
+                      className={isLocked('tipoId') ? `${styles.input} ${styles.inputLocked}` : styles.input}
                       value={receptor.tipoId}
                       onChange={e => setReceptor(r => ({ ...r, tipoId: e.target.value }))}
-                      disabled={enviando}
+                      disabled={enviando || isLocked('tipoId')}
                     >
                       {TIPO_ID_OPCIONES.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
@@ -231,10 +270,11 @@ export default function ModalFacturacion({
                     Identificacion
                     <input
                       type="text"
-                      className={styles.input}
+                      className={isLocked('identificacion') ? `${styles.input} ${styles.inputLocked}` : styles.input}
                       value={receptor.identificacion}
                       onChange={e => setReceptor(r => ({ ...r, identificacion: e.target.value }))}
                       disabled={enviando}
+                      readOnly={isLocked('identificacion')}
                       placeholder="0912345678"
                     />
                   </label>
@@ -244,10 +284,11 @@ export default function ModalFacturacion({
                   Nombre / Razon social
                   <input
                     type="text"
-                    className={styles.input}
+                    className={isLocked('razonSocial') ? `${styles.input} ${styles.inputLocked}` : styles.input}
                     value={receptor.razonSocial}
                     onChange={e => setReceptor(r => ({ ...r, razonSocial: e.target.value }))}
                     disabled={enviando}
+                    readOnly={isLocked('razonSocial')}
                     placeholder="Nombre completo del cliente"
                   />
                 </label>
@@ -256,10 +297,11 @@ export default function ModalFacturacion({
                   Direccion (opcional)
                   <input
                     type="text"
-                    className={styles.input}
+                    className={isLocked('direccion') ? `${styles.input} ${styles.inputLocked}` : styles.input}
                     value={receptor.direccion}
                     onChange={e => setReceptor(r => ({ ...r, direccion: e.target.value }))}
                     disabled={enviando}
+                    readOnly={isLocked('direccion')}
                   />
                 </label>
 
@@ -268,10 +310,11 @@ export default function ModalFacturacion({
                     Telefono (opcional)
                     <input
                       type="tel"
-                      className={styles.input}
+                      className={isLocked('phone') ? `${styles.input} ${styles.inputLocked}` : styles.input}
                       value={receptor.phone}
                       onChange={e => setReceptor(r => ({ ...r, phone: e.target.value }))}
                       disabled={enviando}
+                      readOnly={isLocked('phone')}
                       placeholder="0987654321"
                     />
                   </label>
@@ -279,10 +322,11 @@ export default function ModalFacturacion({
                     Email (opcional)
                     <input
                       type="email"
-                      className={styles.input}
+                      className={isLocked('email') ? `${styles.input} ${styles.inputLocked}` : styles.input}
                       value={receptor.email}
                       onChange={e => setReceptor(r => ({ ...r, email: e.target.value }))}
                       disabled={enviando}
+                      readOnly={isLocked('email')}
                     />
                   </label>
                 </div>

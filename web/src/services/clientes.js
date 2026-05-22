@@ -118,7 +118,7 @@ function dedupById(list) {
   return out;
 }
 
-function buildClientCreateData(session, { name, phone, email = null, identificacion = '', tipoId = '05' }) {
+function buildClientCreateData(session, { name, phone, email = null, identificacion = '', tipoId = '05', direccion = '' }) {
   const nameFields = buildNameSearchFields(name);
   return withActor(session, {
     ...nameFields,
@@ -126,6 +126,7 @@ function buildClientCreateData(session, { name, phone, email = null, identificac
     email: email || null,
     identificacion: identificacion || '',
     tipoId: tipoId || '05',
+    direccion: direccion || '',
     firstVisitAt: serverTimestamp(),
     lastVisitAt: null,
     totalVisits: 0,
@@ -162,7 +163,7 @@ export async function createClientsBatch(session, clients) {
   return created;
 }
 
-export async function updateClient(session, id, { name, phone, email, identificacion, tipoId }) {
+export async function updateClient(session, id, { name, phone, email, identificacion, tipoId, direccion }) {
   const before = await getClient(id);
   if (!before) throw new Error('Cliente no encontrado');
 
@@ -174,7 +175,8 @@ export async function updateClient(session, id, { name, phone, email, identifica
     phone: normalizedPhone,
     email: email || null,
     identificacion: identificacion || '',
-    tipoId: tipoId || '05'
+    tipoId: tipoId || '05',
+    direccion: direccion || ''
   }));
 
   // Propagar denorm si cambio name o phone (Regla 5).
