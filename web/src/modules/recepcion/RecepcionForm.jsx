@@ -5,7 +5,7 @@ import {
 import {
   searchByPlaca, listVehiclesByClient, createVehicle, getVehicle
 } from '../../services/vehiculos';
-import { createOT } from '../../services/workOrders';
+import { createOT, listOTsByVehicle } from '../../services/workOrders';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
 import { fmtMiles, parseMiles } from '../../utils/formatMiles';
 import styles from './RecepcionForm.module.css';
@@ -27,6 +27,14 @@ function derivarTipoId(identificacion) {
   const limpio = (identificacion || '').replace(/\D/g, '');
   if (limpio.length === 13) return '04';
   return '05';
+}
+
+// Convierte cualquier representacion de timestamp Firestore a Date.
+function tsToDate(ts) {
+  if (!ts) return null;
+  if (typeof ts.toDate === 'function') return ts.toDate();
+  if (typeof ts.seconds === 'number') return new Date(ts.seconds * 1000);
+  return new Date(ts);
 }
 
 export default function RecepcionForm({
@@ -73,10 +81,40 @@ export default function RecepcionForm({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
+  // Si el vehiculo seleccionado tiene una OT reciente con garantia vigente,
+  // se guarda aqui para mostrar alerta amarilla en la UI.
+  const [garantiaAlerta, setGarantiaAlerta] = useState(null);
+
   // Pre-carga cedula/RUC cuando se selecciona o crea un cliente.
   useEffect(() => {
     setClientIdentificacion(client?.identificacion || '');
   }, [client?.id]);
+
+  // Detecta si el vehiculo seleccionado tiene garantia activa de un
+  // trabajo reciente. Si la hay, la guarda en garantiaAlerta para mostrar
+  // un aviso amarillo en la UI.
+  useEffect(() => {
+    if (!vehicle?.id) {
+      setGarantiaAlerta(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const ots = await listOTsByVehicle(vehicle.id, 5);
+        if (cancelled) return;
+        const ahora = Date.now();
+        const ot = ots.find(o => {
+          const fv = tsToDate(o.garantia?.fechaVencimiento);
+          return fv && fv.getTime() > ahora;
+        });
+        setGarantiaAlerta(ot || null);
+      } catch (_) {
+        setGarantiaAlerta(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [vehicle?.id]);
 
   // Precarga vehiculo + cliente si vienen como params desde VehiculoDetail.
   useEffect(() => {
@@ -556,6 +594,31 @@ export default function RecepcionForm({
             </button>
           </div>
         )}
+
+        {garantiaAlerta && (() => {
+          const fv = tsToDate(garantiaAlerta.garantia?.fechaVencimiento);
+          const dias = fv ? Math.ceil((fv.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+          return (
+            <div className={styles.garantiaAlerta}>
+              <strong>Garantia activa</strong>
+              <span>
+                Este vehiculo tiene garantia vigente por la OT{' '}
+                <strong>{garantiaAlerta.numeroOT || garantiaAlerta.id}</strong>.
+                {fv && (
+                  <> Vence el <strong>{fv.toLocaleDateString('es-EC')}</strong>{' '}
+                  ({dias} dia{dias === 1 ? '' : 's'}).</>
+                )}
+              </span>
+              <button
+                type="button"
+                className={styles.garantiaLink}
+                onClick={() => navigate('ot-detail', { id: garantiaAlerta.id })}
+              >
+                Ver OT original
+              </button>
+            </div>
+          );
+        })()}
 
         {searchAttempted && !client && !showCreateClient && !searching && (
           <div className={styles.noMatch}>

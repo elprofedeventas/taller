@@ -33,13 +33,27 @@ export async function getPayment(id) {
  * Firestore reintentara la transaccion; en el segundo intento leera
  * status='entregado' y abortara con error explicito.
  */
-export async function createPayment(session, { ot, monto, formaPago }) {
+export async function createPayment(session, { ot, monto, formaPago, garantia = null }) {
   const m = Number(monto);
   if (!Number.isFinite(m) || m <= 0) {
     throw new Error('Monto invalido. Debe ser mayor a 0.');
   }
   if (!FORMAS_PAGO.includes(formaPago)) {
     throw new Error('Forma de pago invalida.');
+  }
+
+  // Garantia opcional: si vienen dias > 0, calculamos fechaVencimiento
+  // (hoy + dias) y la persistimos en la OT junto con el cierre.
+  let garantiaData = null;
+  if (garantia && Number(garantia.dias) > 0) {
+    const dias = Math.round(Number(garantia.dias));
+    const fv = new Date();
+    fv.setDate(fv.getDate() + dias);
+    garantiaData = {
+      dias,
+      fechaVencimiento: Timestamp.fromDate(fv),
+      vehicleId: ot.vehicleId
+    };
   }
 
   const otRef = doc(db, 'workOrders', ot.id);
@@ -81,7 +95,8 @@ export async function createPayment(session, { ot, monto, formaPago }) {
       status: 'entregado',
       statusChangedAt: serverTimestamp(),
       statusHistory: [...(data.statusHistory || []), historyEntry],
-      closedAt: serverTimestamp()
+      closedAt: serverTimestamp(),
+      ...(garantiaData ? { garantia: garantiaData } : {})
     }));
 
     transaction.update(clientRef, withActor(session, {

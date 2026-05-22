@@ -416,3 +416,35 @@
 .submitOT:disabled {
   opacity: 0.5;
 }
+
+.garantiaAlerta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #FEF3C7;
+  border: 1px solid #F59E0B;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #78350F;
+}
+
+.garantiaAlerta strong {
+  font-weight: 700;
+}
+
+.garantiaLink {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid #F59E0B;
+  color: #78350F;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.garantiaLink:hover {
+  background: rgba(245, 158, 11, 0.15);
+}

@@ -11,6 +11,13 @@ function formatDate(ts) {
   return d.toLocaleDateString('es-EC', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function garantiaVigente(ot) {
+  const fv = ot.garantia?.fechaVencimiento;
+  if (!fv) return false;
+  const d = typeof fv.toDate === 'function' ? fv.toDate() : new Date(fv);
+  return d.getTime() > Date.now();
+}
+
 export default function VehiculoDetail({ vehiculoId, navigate }) {
   const [vehicle, setVehicle] = useState(null);
   const [ots, setOts] = useState([]);
@@ -144,6 +151,9 @@ export default function VehiculoDetail({ vehiculoId, navigate }) {
                 </div>
                 <div className={styles.otRight}>
                   <StatusBadge status={ot.status} />
+                  {garantiaVigente(ot) && (
+                    <span className={styles.garantiaBadge}>Garantia vigente</span>
+                  )}
                   {ot.totalGeneral > 0 && (
                     <span className={styles.otTotal}>${Number(ot.totalGeneral).toFixed(2)}</span>
                   )}

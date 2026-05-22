@@ -18,6 +18,8 @@ export default function CobroForm({ otId, navigate, auth }) {
 
   const [monto, setMonto] = useState('');
   const [formaPago, setFormaPago] = useState('efectivo');
+  const [conGarantia, setConGarantia] = useState(false);
+  const [garantiaDias, setGarantiaDias] = useState('30');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -102,10 +104,14 @@ export default function CobroForm({ otId, navigate, auth }) {
     setError(null);
     setSaving(true);
     try {
+      const garantia = conGarantia && Number(garantiaDias) > 0
+        ? { dias: Number(garantiaDias) }
+        : null;
       const payment = await createPayment(auth.session, {
         ot,
         monto,
-        formaPago
+        formaPago,
+        garantia
       });
       navigate('comprobante', { id: payment.id });
     } catch (e) {
@@ -256,6 +262,41 @@ export default function CobroForm({ otId, navigate, auth }) {
             ))}
           </select>
         </label>
+
+        <fieldset className={styles.garantiaBox}>
+          <legend className={styles.garantiaLegend}>Garantia del trabajo</legend>
+          <label className={styles.radioLabel}>
+            <input
+              type="radio"
+              name="garantia"
+              checked={!conGarantia}
+              onChange={() => setConGarantia(false)}
+              disabled={saving || !canCobrar}
+            />
+            Sin garantia
+          </label>
+          <label className={styles.radioLabel}>
+            <input
+              type="radio"
+              name="garantia"
+              checked={conGarantia}
+              onChange={() => setConGarantia(true)}
+              disabled={saving || !canCobrar}
+            />
+            Con garantia por
+            <input
+              type="number"
+              className={styles.garantiaDias}
+              value={garantiaDias}
+              onChange={e => setGarantiaDias(e.target.value)}
+              disabled={saving || !canCobrar || !conGarantia}
+              min="1"
+              max="365"
+              step="1"
+            />
+            dias
+          </label>
+        </fieldset>
 
         {error && <p className={styles.error} role="alert">{error}</p>}
 

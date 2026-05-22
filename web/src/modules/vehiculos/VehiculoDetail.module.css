@@ -170,3 +170,15 @@
   font-size: 14px;
   margin: 16px 0 0;
 }
+
+.garantiaBadge {
+  font-size: 10px;
+  font-weight: 600;
+  background: #FEF3C7;
+  color: #78350F;
+  border: 1px solid #F59E0B;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
