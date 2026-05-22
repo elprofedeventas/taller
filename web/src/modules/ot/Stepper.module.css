@@ -1,0 +1,120 @@
+.container {
+  display: flex;
+  align-items: stretch;
+  padding: 14px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.stage {
+  flex: 1;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stageLast {
+  flex: 0 0 auto;
+}
+
+.dotWrap {
+  display: flex;
+  align-items: center;
+  height: 24px;
+}
+
+.dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  transition: all 120ms ease;
+}
+
+.dotDone {
+  background: var(--success);
+}
+
+.dotCurrent {
+  background: var(--primary);
+  box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.18);
+}
+
+.dotPending {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-medium);
+  color: var(--text-secondary);
+}
+
+.line {
+  flex: 1;
+  height: 2px;
+  background: var(--border-medium);
+}
+
+.lineDone {
+  background: var(--success);
+}
+
+.stageLabel {
+  margin-top: 8px;
+  padding-right: 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.stageName {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stageTime {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+.dur {
+  color: var(--text-secondary);
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+.durActive {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+/* OT cancelada: render alternativo simple */
+.cancelado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #FEE2E2;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+}
+
+.canceladoBadge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #991B1B;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.canceladoFecha {
+  font-size: 12px;
+  color: #7F1D1D;
+}

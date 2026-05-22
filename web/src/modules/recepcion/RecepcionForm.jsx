@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { searchByPhone, getClient, createClient } from '../../services/clientes';
+import { useState, useEffect } from 'react';
+import { searchByPhone, getClient, createClient, updateClient } from '../../services/clientes';
 import { searchByPlaca, listVehiclesByClient, createVehicle } from '../../services/vehiculos';
 import { createOT } from '../../services/workOrders';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
@@ -12,6 +12,16 @@ const PHONE_INPUT = /^[0-9+\s()\-]+$/;
 
 function detectInputType(raw) {
   return PHONE_INPUT.test(raw.trim()) ? 'phone' : 'placa';
+}
+
+// Deriva el tipo de identificacion SRI por longitud:
+//   10 digitos -> '05' Cedula
+//   13 digitos -> '04' RUC
+//   otro       -> '05' default (puede editarse luego en modal de factura)
+function derivarTipoId(identificacion) {
+  const limpio = (identificacion || '').replace(/\D/g, '');
+  if (limpio.length === 13) return '04';
+  return '05';
 }
 
 export default function RecepcionForm({ navigate, auth }) {
@@ -29,6 +39,13 @@ export default function RecepcionForm({ navigate, auth }) {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientIdentificacion, setNewClientIdentificacion] = useState('');
+
+  // Cedula/RUC inline: visible siempre que haya cliente seleccionado.
+  // Para clientes existentes sin identificacion (creados antes del
+  // modulo facturacion), permite capturarla al momento de crear la OT
+  // y backfillea el cliente para que no haya que reingresar luego.
+  const [clientIdentificacion, setClientIdentificacion] = useState('');
 
   const [newVehPlaca, setNewVehPlaca] = useState('');
   const [newVehMarca, setNewVehMarca] = useState('');
@@ -41,6 +58,11 @@ export default function RecepcionForm({ navigate, auth }) {
 
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+
+  // Pre-carga cedula/RUC cuando se selecciona o crea un cliente.
+  useEffect(() => {
+    setClientIdentificacion(client?.identificacion || '');
+  }, [client?.id]);
 
   async function handleSearch(e) {
     if (e) e.preventDefault();
@@ -105,7 +127,9 @@ export default function RecepcionForm({ navigate, auth }) {
       const c = await createClient(auth.session, {
         name: newClientName,
         phone: newClientPhone,
-        email: newClientEmail
+        email: newClientEmail,
+        identificacion: newClientIdentificacion,
+        tipoId: derivarTipoId(newClientIdentificacion)
       });
       setClient(c);
       setClientVehicles([]);
@@ -164,10 +188,33 @@ export default function RecepcionForm({ navigate, auth }) {
     setError(null);
     setProcessing(true);
     try {
+      const idValue = (clientIdentificacion || '').trim();
+      const tipoIdValue = derivarTipoId(idValue);
+
+      // Backfillea el cliente si la cedula cambio o no estaba.
+      // No bloquea la OT si falla.
+      if (idValue && idValue !== (client.identificacion || '')) {
+        try {
+          await updateClient(auth.session, client.id, {
+            name: client.name,
+            phone: client.phone,
+            email: client.email || null,
+            identificacion: idValue,
+            tipoId: tipoIdValue
+          });
+        } catch (_) {
+          // no bloquear
+        }
+      }
+
       const ot = await createOT(auth.session, {
         clientId: client.id,
         clientName: client.name,
         clientPhone: client.phone,
+        clientIdentificacion: idValue,
+        clientTipoId: tipoIdValue,
+        clientEmail: client.email || '',
+        clientDireccion: client.direccion || '',
         vehicleId: vehicle.id,
         vehiclePlaca: vehicle.placa,
         vehicleMarca: vehicle.marca,
@@ -210,6 +257,8 @@ export default function RecepcionForm({ navigate, auth }) {
     setNewClientName('');
     setNewClientPhone('');
     setNewClientEmail('');
+    setNewClientIdentificacion('');
+    setClientIdentificacion('');
     setNewVehPlaca('');
     setNewVehMarca('');
     setNewVehModelo('');
@@ -278,6 +327,22 @@ export default function RecepcionForm({ navigate, auth }) {
               Cambiar
             </button>
           </div>
+        )}
+
+        {client && (
+          <label className={styles.label}>
+            Cedula o RUC del cliente (para facturacion)
+            <input
+              type="text"
+              className={styles.input}
+              value={clientIdentificacion}
+              onChange={e => setClientIdentificacion(e.target.value)}
+              disabled={processing}
+              placeholder="10 digitos cedula o 13 digitos RUC"
+              inputMode="numeric"
+              maxLength={13}
+            />
+          </label>
         )}
 
         {client && !vehicle && clientVehicles.length > 0 && (
@@ -383,6 +448,19 @@ export default function RecepcionForm({ navigate, auth }) {
                 onChange={e => setNewClientPhone(e.target.value)}
                 disabled={processing}
                 placeholder="0987654321"
+              />
+            </label>
+            <label className={styles.label}>
+              Cedula o RUC (opcional, para facturacion)
+              <input
+                type="text"
+                className={styles.input}
+                value={newClientIdentificacion}
+                onChange={e => setNewClientIdentificacion(e.target.value)}
+                disabled={processing}
+                placeholder="10 digitos cedula o 13 digitos RUC"
+                inputMode="numeric"
+                maxLength={13}
               />
             </label>
             <label className={styles.label}>

@@ -11,6 +11,7 @@ import ClientesImport from './modules/clientes/ClientesImport';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import ColaOT from './modules/ot/ColaOT';
 import OTDetail from './modules/ot/OTDetail';
+import TableroOT from './modules/tablero/TableroOT';
 import UsuariosList from './modules/usuarios/UsuariosList';
 import UsuarioForm from './modules/usuarios/UsuarioForm';
 import CajaList from './modules/caja/CajaList';
@@ -25,6 +26,7 @@ import styles from './App.module.css';
 const MODULES = [
   { route: 'clientes', label: 'Clientes', enabled: true, allowedRoles: null },
   { route: 'recepcion', label: 'Recepcion', enabled: true, allowedRoles: null },
+  { route: 'tablero', label: 'Tablero', enabled: true, allowedRoles: null },
   { route: 'ot', label: 'OTs', enabled: true, allowedRoles: null },
   { route: 'caja', label: 'Caja', enabled: true, allowedRoles: null },
   { route: 'facturacion', label: 'Facturacion', enabled: true, allowedRoles: ['owner', 'manager', 'recepcionista'] },
@@ -128,6 +130,8 @@ function renderRoute(route, navigate, auth) {
       return <RecepcionForm key={`rec-${k}`} navigate={navigate} auth={auth} />;
     case 'ot':
       return <ColaOT key={`cola-${k}`} navigate={navigate} auth={auth} />;
+    case 'tablero':
+      return <TableroOT key={`tab-${k}`} navigate={navigate} auth={auth} />;
     case 'ot-detail':
       return (
         <OTDetail

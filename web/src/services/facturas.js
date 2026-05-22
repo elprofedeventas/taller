@@ -85,6 +85,7 @@ export async function emitirFactura(session, {
   receptor,
   items,
   formaPago = '01',
+  descripcion = '',
   workOrderId = null,
   paymentId = null
 }) {
@@ -109,6 +110,7 @@ export async function emitirFactura(session, {
     receptor,
     items,
     formaPago,
+    descripcion: descripcion || '',
     workOrderId,
     paymentId,
     createdAt: serverTimestamp(),
@@ -128,6 +130,13 @@ export async function emitirFactura(session, {
 
   let data;
   try {
+    // infoAdicional para el SRI: solo Descripcion si el usuario la cargo.
+    // NO se envia email (decision del producto).
+    const infoAdicional = [];
+    if (descripcion && descripcion.trim()) {
+      infoAdicional.push({ nombre: 'Descripcion', valor: descripcion.trim() });
+    }
+
     const res = await fetch('/api/facturar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -138,10 +147,28 @@ export async function emitirFactura(session, {
         items,
         secuencial,
         formaPago,
+        infoAdicional,
         p12Encrypted: config.p12Encrypted,
         p12Password: config.p12Password
       })
     });
+
+    // Detecta respuestas no-JSON antes de res.json() para dar un mensaje util.
+    // Caso comun: npm run dev (Vite) no sirve Vercel Functions y el SPA
+    // fallback devuelve HTML; res.json() explota con "Unexpected end of JSON".
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/json')) {
+      const raw = await res.text().catch(() => '');
+      const esLocal = typeof window !== 'undefined' && /^localhost|^127\./.test(window.location.hostname);
+      const hint = esLocal
+        ? ' En localhost, las Vercel Functions no corren con "npm run dev". Usa "vercel dev" desde web/.'
+        : '';
+      throw new Error(
+        `/api/facturar no respondio JSON (status ${res.status}).${hint} ` +
+        `Respuesta: ${raw.slice(0, 200)}`
+      );
+    }
+
     data = await res.json();
 
     if (!res.ok || !data.ok) {
@@ -178,6 +205,7 @@ export async function emitirFactura(session, {
     claveAcceso: data.claveAcceso,
     numeroAutorizacion: data.numeroAutorizacion,
     fechaAutorizacion: data.fechaAutorizacion,
+    fechaEmision: data.fechaEmision,
     numeroFactura: data.numeroFactura,
     totales: data.totales,
     xmlFirmado: data.xmlFirmado,

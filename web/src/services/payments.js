@@ -10,7 +10,7 @@ import { db } from './firestore';
 import { withActor } from './auth';
 import {
   collection, doc, getDoc,
-  runTransaction, increment, serverTimestamp
+  runTransaction, increment, serverTimestamp, Timestamp
 } from 'firebase/firestore';
 
 const COLLECTION = 'payments';
@@ -70,8 +70,17 @@ export async function createPayment(session, { ot, monto, formaPago }) {
       vehiclePlaca: ot.vehiclePlaca
     }));
 
+    const historyEntry = {
+      status: 'entregado',
+      at: Timestamp.now(),
+      by: session.userId,
+      byName: session.name || ''
+    };
+
     transaction.update(otRef, withActor(session, {
       status: 'entregado',
+      statusChangedAt: serverTimestamp(),
+      statusHistory: [...(data.statusHistory || []), historyEntry],
       closedAt: serverTimestamp()
     }));
 

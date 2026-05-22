@@ -48,25 +48,31 @@
   padding: 16px;
 }
 
+/* =========================================================
+   PAGINA A4
+   ========================================================= */
 .page {
   background: white;
-  color: black;
+  color: #111;
   width: min(820px, 100%);
-  padding: 32px 40px;
+  padding: 28px 36px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  font-family: ui-monospace, Consolas, 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
-.printHeader {
+/* =========================================================
+   HEADER: Emisor (izq) + Autorizacion (der)
+   ========================================================= */
+.headerGrid {
   display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 18px;
-  padding-bottom: 14px;
-  margin-bottom: 16px;
-  border-bottom: 2px solid #111;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ccc;
 }
 
 .emisorBlock {
@@ -75,125 +81,109 @@
   gap: 2px;
 }
 
-.emisorName {
-  font-size: 15px;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin: 0 0 4px 0;
-}
-
-.emisorComercial {
-  font-style: italic;
-  font-size: 12px;
-  margin: 0 0 4px 0;
-  color: #444;
-}
-
-.emisorMeta {
-  font-size: 11px;
-  margin: 0;
-  color: #333;
-}
-
-.docBox {
-  border: 1.5px solid #111;
-  padding: 12px 14px;
+.autorizacionBlock {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.docTitle {
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  text-align: center;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #111;
-  margin-bottom: 4px;
-}
-
-.kv {
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 6px;
+.line {
+  margin: 0;
   font-size: 11px;
-  align-items: baseline;
+  color: #222;
 }
 
-.kvLabel {
+.line strong {
+  font-weight: 600;
+}
+
+.facturaTitle {
+  font-size: 16px;
   font-weight: 700;
-  font-size: 10px;
-  text-transform: uppercase;
-  color: #555;
-}
-
-.ambienteTag {
-  margin-top: 6px;
-  font-size: 10px;
-  text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #555;
-}
-
-.receptorBlock {
-  border: 1px solid #ccc;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-  font-size: 11px;
-}
-
-.blockTitle {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
   margin: 0 0 8px 0;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #eee;
+  text-transform: uppercase;
+  color: #111;
 }
 
+.facturaNumero {
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.autLabel {
+  margin: 4px 0 0 0;
+  font-size: 11px;
+  color: #222;
+  font-weight: 600;
+}
+
+.autValor {
+  margin: 0;
+  font-size: 10px;
+  color: #333;
+  word-break: break-all;
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+}
+
+.claveAcceso {
+  margin: 0;
+  font-size: 9.5px;
+  color: #333;
+  word-break: break-all;
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   RECEPTOR
+   ========================================================= */
 .receptorGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px 24px;
+  padding: 10px 0;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 14px;
 }
 
+/* =========================================================
+   TABLA ITEMS
+   ========================================================= */
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
-  margin-bottom: 18px;
+  font-size: 10px;
+  margin-bottom: 16px;
 }
 
 .th {
-  background: #111;
-  color: #fff;
+  background: #f0f0f0;
+  color: #111;
   padding: 6px 8px;
   text-align: left;
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  border-bottom: 1.5px solid #888;
+  vertical-align: bottom;
 }
 
 .thR {
-  background: #111;
-  color: #fff;
+  background: #f0f0f0;
+  color: #111;
   padding: 6px 8px;
   text-align: right;
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  border-bottom: 1.5px solid #888;
+  vertical-align: bottom;
 }
 
 .td {
   padding: 5px 8px;
   border-bottom: 1px solid #eee;
   vertical-align: top;
+  font-size: 10px;
 }
 
 .tdR {
@@ -201,83 +191,137 @@
   border-bottom: 1px solid #eee;
   text-align: right;
   vertical-align: top;
-}
-
-.trAlt {
-  background: #fafafa;
-}
-
-.tdIva {
-  color: #888;
   font-size: 10px;
 }
 
-.totalesBlock {
-  display: flex;
-  justify-content: flex-end;
+/* =========================================================
+   BOTTOM GRID: info adicional + formas pago (izq) / totales (der)
+   ========================================================= */
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
   margin-bottom: 18px;
+  align-items: start;
+}
+
+.bottomLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.infoBox {
+  border: 1px solid #ccc;
+}
+
+.boxTitle {
+  background: #f0f0f0;
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #ccc;
+}
+
+.kvRow {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  padding: 6px 10px;
+  font-size: 10px;
+  gap: 6px;
+}
+
+.kvLabel {
+  font-weight: 600;
+  color: #555;
+}
+
+.pagoRow {
+  display: grid;
+  grid-template-columns: 1fr 80px 60px;
+  padding: 6px 10px;
+  font-size: 10px;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.pagoMonto {
+  text-align: right;
+  font-weight: 600;
+}
+
+.pagoPlazo {
+  text-align: right;
+  color: #666;
 }
 
 .totalesBox {
-  width: 280px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .tFila {
   display: flex;
   justify-content: space-between;
-  padding: 3px 0;
+  padding: 4px 8px;
   border-bottom: 1px solid #eee;
+}
+
+.tFila span:first-child {
+  color: #444;
+}
+
+.tFila span:last-child {
+  font-variant-numeric: tabular-nums;
 }
 
 .tFilaTotal {
   display: flex;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: 8px;
   border-bottom: none;
   border-top: 2px solid #111;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   margin-top: 4px;
 }
 
-.autBlock {
-  background: #f5f5f5;
-  border: 1.5px solid #111;
-  padding: 12px 14px;
-  margin-bottom: 18px;
-  font-size: 11px;
+.tFilaTotal span:last-child {
+  font-variant-numeric: tabular-nums;
 }
 
-.claveLabel {
-  font-weight: 700;
-  font-size: 10px;
-  text-transform: uppercase;
-  color: #555;
-  margin-top: 10px;
-  margin-bottom: 4px;
-}
-
-.claveAcceso {
-  display: block;
-  font-family: ui-monospace, Consolas, 'Courier New', monospace;
-  font-size: 11px;
-  background: #fff;
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  letter-spacing: 1.5px;
-  word-break: break-all;
-  line-height: 1.7;
-}
-
+/* =========================================================
+   FOOTER
+   ========================================================= */
 .footer {
   border-top: 1px solid #ddd;
   padding-top: 10px;
-  font-size: 10px;
+  font-size: 9px;
   color: #888;
   text-align: center;
-  line-height: 1.8;
+  font-style: italic;
+}
+
+/* =========================================================
+   PRINT MEDIA: cuando window.print() abre el dialogo, el navegador
+   genera un PDF nativo con texto seleccionable. Reglas globales en
+   index.css ocultan el chrome y dejan solo [data-printable].
+   ========================================================= */
+@media print {
+  .page {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    width: 100%;
+    max-width: none;
+    box-shadow: none;
+  }
+
+  .toolbar {
+    display: none;
+  }
 }

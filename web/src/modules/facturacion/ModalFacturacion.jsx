@@ -30,7 +30,8 @@ const CONSUMIDOR_FINAL = {
   identificacion: '9999999999',
   razonSocial: 'CONSUMIDOR FINAL',
   direccion: '',
-  email: ''
+  email: '',
+  phone: ''
 };
 
 const fmt = (val) => parseFloat(val || 0).toFixed(2);
@@ -64,10 +65,11 @@ export default function ModalFacturacion({
   onFacturaEmitida = null
 }) {
   const [receptor, setReceptor] = useState(
-    receptorInicial || { tipoId: '05', identificacion: '', razonSocial: '', direccion: '', email: '' }
+    receptorInicial || { tipoId: '05', identificacion: '', razonSocial: '', direccion: '', email: '', phone: '' }
   );
   const [items, setItems] = useState(itemsIniciales || [{ ...ITEM_VACIO }]);
   const [formaPago, setFormaPago] = useState('01');
+  const [descripcion, setDescripcion] = useState('');
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
@@ -125,6 +127,7 @@ export default function ModalFacturacion({
         receptor,
         items,
         formaPago,
+        descripcion,
         workOrderId,
         paymentId
       });
@@ -249,15 +252,27 @@ export default function ModalFacturacion({
                   />
                 </label>
 
+                <label className={styles.label}>
+                  Direccion (opcional)
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={receptor.direccion}
+                    onChange={e => setReceptor(r => ({ ...r, direccion: e.target.value }))}
+                    disabled={enviando}
+                  />
+                </label>
+
                 <div className={styles.row}>
                   <label className={`${styles.label} ${styles.col5}`}>
-                    Direccion (opcional)
+                    Telefono (opcional)
                     <input
-                      type="text"
+                      type="tel"
                       className={styles.input}
-                      value={receptor.direccion}
-                      onChange={e => setReceptor(r => ({ ...r, direccion: e.target.value }))}
+                      value={receptor.phone}
+                      onChange={e => setReceptor(r => ({ ...r, phone: e.target.value }))}
                       disabled={enviando}
+                      placeholder="0987654321"
                     />
                   </label>
                   <label className={`${styles.label} ${styles.col5}`}>
@@ -372,6 +387,21 @@ export default function ModalFacturacion({
                 >
                   + Agregar item
                 </button>
+              </section>
+
+              {/* Descripcion (campoAdicional para SRI + Info Adicional del RIDE) */}
+              <section className={styles.section}>
+                <label className={styles.label}>
+                  Descripcion (opcional, aparece en Informacion Adicional del RIDE)
+                  <textarea
+                    className={styles.input}
+                    value={descripcion}
+                    onChange={e => setDescripcion(e.target.value)}
+                    disabled={enviando}
+                    rows={3}
+                    placeholder="Notas o detalle adicional del servicio facturado"
+                  />
+                </label>
               </section>
 
               {/* Forma de pago + totales */}

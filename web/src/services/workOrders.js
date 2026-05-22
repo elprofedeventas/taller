@@ -21,7 +21,8 @@ import { db } from './firestore';
 import { withActor } from './auth';
 import {
   collection, doc, getDoc, getDocs, addDoc, updateDoc,
-  query, where, orderBy, limit, serverTimestamp
+  query, where, orderBy, limit, serverTimestamp,
+  runTransaction, Timestamp
 } from 'firebase/firestore';
 
 const COLLECTION = 'workOrders';
@@ -50,11 +51,24 @@ export async function getOT(id) {
 
 export async function createOT(session, {
   clientId, clientName, clientPhone,
+  clientIdentificacion = '', clientTipoId = '05',
+  clientEmail = '', clientDireccion = '',
   vehicleId, vehiclePlaca, vehicleMarca, vehicleModelo,
   problema
 }) {
+  // statusHistory: dentro de arrays Firestore NO acepta serverTimestamp(),
+  // usar Timestamp.now() client-side. El statusChangedAt top-level si usa
+  // serverTimestamp() para mantener consistencia con el reloj del servidor.
+  const initialHistoryEntry = {
+    status: 'recibido',
+    at: Timestamp.now(),
+    by: session.userId,
+    byName: session.userName || session.name || ''
+  };
   const data = withActor(session, {
     status: 'recibido',
+    statusChangedAt: serverTimestamp(),
+    statusHistory: [initialHistoryEntry],
     openedAt: serverTimestamp(),
     closedAt: null,
     problema: (problema || '').trim(),
@@ -66,6 +80,10 @@ export async function createOT(session, {
     clientId,
     clientName,
     clientPhone,
+    clientIdentificacion,
+    clientTipoId,
+    clientEmail,
+    clientDireccion,
     vehicleId,
     vehiclePlaca,
     vehicleMarca,
@@ -78,6 +96,45 @@ export async function createOT(session, {
   });
   const ref = await addDoc(workOrdersCollection(), data);
   return { id: ref.id, ...data };
+}
+
+/**
+ * Cambia el status de una OT en transaccion atomica:
+ *   - Setea status nuevo + statusChangedAt = serverTimestamp().
+ *   - Appendea a statusHistory un nuevo entry {status, at, by, byName}.
+ *   - Si el nuevo status es terminal (entregado/cancelado), setea closedAt.
+ * Idempotente: si la OT ya esta en ese status, no hace nada.
+ *
+ * Usar este helper en lugar de updateOT({status: ...}) para que el historial
+ * quede registrado y el tablero Kanban pueda calcular tiempo por etapa.
+ */
+export async function changeOTStatus(session, otId, newStatus) {
+  const ref = doc(db, COLLECTION, otId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error('OT no encontrada');
+    const current = snap.data();
+    if (current.status === newStatus) return;
+
+    const entry = {
+      status: newStatus,
+      at: Timestamp.now(),
+      by: session.userId,
+      byName: session.userName || session.name || ''
+    };
+
+    const patch = withActor(session, {
+      status: newStatus,
+      statusChangedAt: serverTimestamp(),
+      statusHistory: [...(current.statusHistory || []), entry]
+    });
+
+    if (newStatus === 'entregado' || newStatus === 'cancelado') {
+      patch.closedAt = serverTimestamp();
+    }
+
+    tx.update(ref, patch);
+  });
 }
 
 /**

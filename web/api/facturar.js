@@ -135,7 +135,8 @@ function buildFacturaXml({
   formaPago = FORMA_PAGO_EFECTIVO,
   fechaEmision,
   claveAcceso,
-  ambiente
+  ambiente,
+  infoAdicional = []
 }) {
   const fecha = fechaEmision; // formato dd/mm/aaaa
 
@@ -181,8 +182,14 @@ function buildFacturaXml({
     totalConImpuestosXml += `<totalImpuesto><codigo>2</codigo><codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje><descuentoAdicional>0.00</descuentoAdicional><baseImponible>${baseImponibleIva0.toFixed(2)}</baseImponible><tarifa>0.00</tarifa><valor>0.00</valor></totalImpuesto>`;
   }
 
-  const infoAdicionalXml = receptor.email
-    ? `<infoAdicional><campoAdicional nombre="email">${xmlEscape(receptor.email)}</campoAdicional></infoAdicional>`
+  // infoAdicional: array de { nombre, valor }. El frontend decide que campos
+  // van (Descripcion, Telefono, etc.). NO se inyecta email automaticamente.
+  const camposValidos = (infoAdicional || [])
+    .filter(c => c && c.nombre && String(c.valor || '').trim());
+  const infoAdicionalXml = camposValidos.length
+    ? `<infoAdicional>${camposValidos.map(c =>
+        `<campoAdicional nombre="${xmlEscape(c.nombre)}">${xmlEscape(c.valor)}</campoAdicional>`
+      ).join('')}</infoAdicional>`
     : '';
 
   // Subtree de <factura> (sin declaracion XML, todo en una linea)
@@ -306,7 +313,8 @@ export default async function handler(req, res) {
 
   const {
     emisor, receptor, items, secuencial, formaPago, fechaEmision,
-    p12Encrypted, p12Password, accion, claveAcceso, p12Base64
+    p12Encrypted, p12Password, accion, claveAcceso, p12Base64,
+    infoAdicional
   } = req.body;
 
   try {
@@ -384,7 +392,7 @@ export default async function handler(req, res) {
     // XML completo de la factura (con declaracion XML)
     const { xml: facturaXml, totales } = buildFacturaXml({
       emisor, receptor, items, secuencial, formaPago, fechaEmision: fecha,
-      claveAcceso: claveAccesoGen, ambiente
+      claveAcceso: claveAccesoGen, ambiente, infoAdicional
     });
 
     // Firma XAdES-BES via ec-sri-invoice-signer

@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  getOT, updateOT, calculateTotals, round2,
+  getOT, updateOT, changeOTStatus, calculateTotals, round2,
   nextStatus, STATUS_LABEL
 } from '../../services/workOrders';
 import { listMechanics } from '../../services/users';
 import { WhatsAppButton } from '../../components/WhatsAppButton';
 import { templatesByIds } from '../../services/whatsapp';
+import BotonFacturar from '../facturacion/BotonFacturar';
+import { otToFacturaItems, otToReceptor } from '../facturacion/otHelpers';
 import StatusBadge from './StatusBadge';
+import Stepper from './Stepper';
 import styles from './OTDetail.module.css';
 
 const FINAL_STATUSES = new Set(['entregado', 'cancelado']);
@@ -171,7 +174,7 @@ export default function OTDetail({ otId, navigate, auth }) {
     setSaving(true);
     setError(null);
     try {
-      await updateOT(auth.session, otId, { status: next });
+      await changeOTStatus(auth.session, otId, next);
       await refreshOT();
     } catch (e) {
       setError(e.message);
@@ -187,7 +190,7 @@ export default function OTDetail({ otId, navigate, auth }) {
     setSaving(true);
     setError(null);
     try {
-      await updateOT(auth.session, otId, { status: 'cancelado' });
+      await changeOTStatus(auth.session, otId, 'cancelado');
       await refreshOT();
     } catch (e) {
       setError(e.message);
@@ -258,6 +261,8 @@ export default function OTDetail({ otId, navigate, auth }) {
           auth={auth}
         />
       </header>
+
+      <Stepper ot={ot} />
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>Vehiculo y cliente</h2>
@@ -472,6 +477,24 @@ export default function OTDetail({ otId, navigate, auth }) {
         </div>
       )}
 
+      {ot.facturaId && !isMechanic && (
+        <section className={styles.facturaVinculada}>
+          <div className={styles.facturaInfo}>
+            <span className={styles.infoLabel}>Factura emitida</span>
+            <span className={styles.facturaNumero}>
+              {ot.facturaNumero || ot.facturaId}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.verFacturaButton}
+            onClick={() => navigate('facturacion')}
+          >
+            Ver RIDE
+          </button>
+        </section>
+      )}
+
       <section className={styles.statusActions}>
         {canAdvanceStatus && next && (
           <button
@@ -502,6 +525,29 @@ export default function OTDetail({ otId, navigate, auth }) {
           >
             Cobrar OT
           </button>
+        )}
+        {ot.status === 'entregado' && !isMechanic && !ot.facturaId && (
+          <BotonFacturar
+            auth={auth}
+            receptor={otToReceptor(ot)}
+            items={otToFacturaItems(ot)}
+            workOrderId={ot.id}
+            label="Emitir factura electronica"
+            variant="primary"
+            onFacturaEmitida={async (data) => {
+              try {
+                await updateOT(auth.session, ot.id, {
+                  facturaId: data.id,
+                  facturaNumero: data.numeroFactura,
+                  facturaClaveAcceso: data.claveAcceso
+                });
+                await refreshOT();
+              } catch (_) {
+                // La factura quedo emitida en facturas/; el vinculo a la
+                // OT se pierde silenciosamente si el update falla.
+              }
+            }}
+          />
         )}
       </section>
     </div>
