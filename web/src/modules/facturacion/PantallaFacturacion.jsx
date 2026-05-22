@@ -24,11 +24,11 @@ function fmtMoney(val) {
   return `$${parseFloat(val || 0).toFixed(2)}`;
 }
 
-export default function PantallaFacturacion({ navigate, auth }) {
+export default function PantallaFacturacion({ navigate, auth, autoOpenFacturaId = null }) {
   const [emisor, setEmisor] = useState(null);
   const [emisorErr, setEmisorErr] = useState(null);
 
-  const [verFacturaId, setVerFacturaId] = useState(null);
+  const [verFacturaId, setVerFacturaId] = useState(autoOpenFacturaId);
   const [facturaDetalle, setFacturaDetalle] = useState(null);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
 

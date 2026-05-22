@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import JsBarcode from 'jsbarcode';
+import { formatPhoneForDisplay } from '../../utils/formatPhone';
 import styles from './RideFactura.module.css';
 
 const FORMA_PAGO_LABEL = {
@@ -44,6 +46,7 @@ function fmtFecha(isoStr) {
  */
 export default function RideFactura({ factura, emisor }) {
   const pageRef = useRef(null);
+  const barcodeCanvasRef = useRef(null);
   const [generando, setGenerando] = useState(false);
 
   if (!factura || !emisor) {
@@ -82,6 +85,24 @@ export default function RideFactura({ factura, emisor }) {
 
   const ambiente = claveAcceso[23] === '2' ? 'PRODUCCION' : 'PRUEBAS';
   const formaPagoLabel = FORMA_PAGO_LABEL[factura.formaPago] || factura.formaPago || '-';
+
+  // Renderiza el codigo de barras Code128 sobre el canvas referenciado.
+  useEffect(() => {
+    if (!barcodeCanvasRef.current || !claveAcceso) return;
+    try {
+      JsBarcode(barcodeCanvasRef.current, claveAcceso, {
+        format: 'CODE128',
+        width: 1.4,
+        height: 48,
+        displayValue: false,
+        margin: 4,
+        background: '#ffffff',
+        lineColor: '#000000'
+      });
+    } catch (e) {
+      console.error('[RideFactura] No se pudo generar el barcode:', e);
+    }
+  }, [claveAcceso]);
 
   async function handlePdf() {
     setGenerando(true);
@@ -166,6 +187,7 @@ export default function RideFactura({ factura, emisor }) {
               <strong>Emision:</strong> NORMAL
             </p>
             <p className={styles.autLabel}><strong>Clave de Acceso:</strong></p>
+            <canvas ref={barcodeCanvasRef} className={styles.barcode} />
             <p className={styles.claveAcceso}>{claveAcceso}</p>
           </div>
         </header>
@@ -182,7 +204,7 @@ export default function RideFactura({ factura, emisor }) {
             <strong>Direccion:</strong> {receptor.direccion || '-'}
           </p>
           <p className={styles.line}>
-            <strong>Telefono:</strong> {receptor.phone || '-'}
+            <strong>Telefono:</strong> {formatPhoneForDisplay(receptor.phone) || '-'}
           </p>
           <p className={styles.line}>
             <strong>Fecha Emision:</strong> {factura.fechaEmision || '-'}
@@ -363,7 +385,23 @@ function generarPdfTexto(pdf, ctx) {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.text('Clave de Acceso:', colRX, rightY);
-  rightY += 4;
+  rightY += 3;
+  // Barcode Code128: render en canvas off-DOM y addImage al PDF.
+  try {
+    const bcCanvas = document.createElement('canvas');
+    JsBarcode(bcCanvas, claveAcceso, {
+      format: 'CODE128', width: 1.4, height: 40,
+      displayValue: false, margin: 0,
+      background: '#ffffff', lineColor: '#000000'
+    });
+    const dataUrl = bcCanvas.toDataURL('image/png');
+    // El canvas mide en pixeles; lo escalamos al ancho de la columna derecha.
+    const bcH = 12; // mm
+    pdf.addImage(dataUrl, 'PNG', colRX, rightY, colRW, bcH);
+    rightY += bcH + 1;
+  } catch (e) {
+    console.error('[RideFactura PDF] No se pudo generar barcode:', e);
+  }
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(7);
   pdf.text(claveAcceso, colRX, rightY, { maxWidth: colRW });
@@ -379,7 +417,7 @@ function generarPdfTexto(pdf, ctx) {
   const halfW = (W - M * 2) / 2 - 4;
 
   y = drawTwoCol(pdf, M, y, 'Razon Social:', receptor.razonSocial, colRX, 'RUC/CI:', receptor.identificacion || '-');
-  y = drawTwoCol(pdf, M, y, 'Direccion:', receptor.direccion || '-', colRX, 'Telefono:', receptor.phone || '-');
+  y = drawTwoCol(pdf, M, y, 'Direccion:', receptor.direccion || '-', colRX, 'Telefono:', formatPhoneForDisplay(receptor.phone) || '-');
   y = drawTwoCol(pdf, M, y, 'Fecha Emision:', factura.fechaEmision || '-', colRX, 'Correo:', receptor.email || '-');
 
   y += 3;

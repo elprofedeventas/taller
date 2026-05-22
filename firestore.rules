@@ -342,6 +342,20 @@ service cloud.firestore {
     }
 
     // =========================================================
+    // CATALOGO - items de mano de obra y repuestos preconfigurados.
+    // Read libre. Write solo owner | manager (configuracion del taller).
+    // Delete permitido.
+    // =========================================================
+    match /catalogo/{itemId} {
+      allow read: if true;
+      allow create, update: if hasActor()
+                            && isValidActor(request.resource.data.actorId,
+                                            request.resource.data.actorRole)
+                            && hasRole(['owner', 'manager']);
+      allow delete: if hasActor() && hasRole(['owner', 'manager']);
+    }
+
+    // =========================================================
     // ARCHIVOS (v2.2+) - workOrders y payments rotan cada mes.
     // Estructura: _archive_workOrders_2026_03, etc.
     // Escritura solo via Admin SDK (scripts/archive-month.js).

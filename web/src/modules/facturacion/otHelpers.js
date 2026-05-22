@@ -4,6 +4,8 @@
 // Si la OT no tiene tareas/repuestos validos cae a un item generico con
 // el totalGeneral persistido.
 
+import { formatPhoneForDisplay } from '../../utils/formatPhone';
+
 export function otToFacturaItems(ot) {
   const items = [];
 
@@ -45,13 +47,21 @@ export function otToFacturaItems(ot) {
   return items;
 }
 
-export function otToReceptor(ot) {
+/**
+ * Convierte denorm de OT + cliente fresco a receptor SRI.
+ *   - Prefiere la denorm de la OT (porque puede tener overrides hechos
+ *     en el momento de crear la OT, ej. cedula completada inline).
+ *   - Cae al cliente fresco para los campos vacios en la OT (caso
+ *     comun: OT vieja sin email/phone, cliente ya tiene esos datos).
+ */
+export function otToReceptor(ot, client = null) {
+  const c = client || {};
   return {
-    tipoId: ot.clientTipoId || '05',
-    identificacion: ot.clientIdentificacion || '',
-    razonSocial: ot.clientName || '',
-    direccion: ot.clientDireccion || '',
-    email: ot.clientEmail || '',
-    phone: ot.clientPhone || ''
+    tipoId: ot.clientTipoId || c.tipoId || '05',
+    identificacion: ot.clientIdentificacion || c.identificacion || '',
+    razonSocial: ot.clientName || c.name || '',
+    direccion: ot.clientDireccion || c.direccion || '',
+    email: ot.clientEmail || c.email || '',
+    phone: formatPhoneForDisplay(ot.clientPhone || c.phone || '')
   };
 }

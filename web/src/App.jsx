@@ -127,7 +127,15 @@ function renderRoute(route, navigate, auth) {
         />
       );
     case 'recepcion':
-      return <RecepcionForm key={`rec-${k}`} navigate={navigate} auth={auth} />;
+      return (
+        <RecepcionForm
+          key={`rec-${k}`}
+          navigate={navigate}
+          auth={auth}
+          preselectVehicleId={route.params.vehicleId || null}
+          preselectClientId={route.params.clientId || null}
+        />
+      );
     case 'ot':
       return <ColaOT key={`cola-${k}`} navigate={navigate} auth={auth} />;
     case 'tablero':
@@ -175,7 +183,14 @@ function renderRoute(route, navigate, auth) {
     case 'configuracion':
       return <ConfiguracionForm key={`cfg-${k}`} auth={auth} />;
     case 'facturacion':
-      return <PantallaFacturacion key={`fac-${k}`} navigate={navigate} auth={auth} />;
+      return (
+        <PantallaFacturacion
+          key={`fac-${k}`}
+          navigate={navigate}
+          auth={auth}
+          autoOpenFacturaId={route.params.facturaId || null}
+        />
+      );
     case 'panel':
       return <PanelDueno key={`panel-${k}`} navigate={navigate} auth={auth} />;
     case 'historico':

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getClient } from '../../services/clientes';
 import { getVehicle, createVehicle, updateVehicle } from '../../services/vehiculos';
+import { fmtMiles, parseMiles } from '../../utils/formatMiles';
 import styles from './VehiculoForm.module.css';
 
 export default function VehiculoForm({ vehiculoId, clienteId, navigate, auth }) {
@@ -184,12 +185,13 @@ export default function VehiculoForm({ vehiculoId, clienteId, navigate, auth }) 
         <label className={styles.label}>
           Ultimo kilometraje (opcional)
           <input
-            type="number"
+            type="text"
             className={styles.input}
-            value={lastKm}
-            onChange={e => setLastKm(e.target.value)}
+            value={fmtMiles(lastKm)}
+            onChange={e => setLastKm(parseMiles(e.target.value))}
             disabled={saving}
-            min="0"
+            inputMode="numeric"
+            placeholder="300.000"
           />
         </label>
 

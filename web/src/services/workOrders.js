@@ -49,6 +49,26 @@ export async function getOT(id) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
+/**
+ * Reserva el siguiente numero correlativo de OT para el anio actual usando
+ * un counter atomico (counters/workOrders-{anio}). Devuelve el formato
+ * legible "OT-2026-0000001" y el secuencial entero.
+ */
+async function obtenerSiguienteNumeroOT(session) {
+  const anio = new Date().getFullYear();
+  const counterRef = doc(db, 'counters', `workOrders-${anio}`);
+  let num = 0;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(counterRef);
+    num = snap.exists() ? (snap.data().ultimo || 0) + 1 : 1;
+    tx.set(counterRef, withActor(session, { ultimo: num }), { merge: true });
+  });
+  return {
+    secuencial: num,
+    numero: `OT-${anio}-${String(num).padStart(7, '0')}`
+  };
+}
+
 export async function createOT(session, {
   clientId, clientName, clientPhone,
   clientIdentificacion = '', clientTipoId = '05',
@@ -65,7 +85,10 @@ export async function createOT(session, {
     by: session.userId,
     byName: session.userName || session.name || ''
   };
+  const { secuencial, numero } = await obtenerSiguienteNumeroOT(session);
   const data = withActor(session, {
+    numeroOT: numero,
+    secuencialOT: secuencial,
     status: 'recibido',
     statusChangedAt: serverTimestamp(),
     statusHistory: [initialHistoryEntry],

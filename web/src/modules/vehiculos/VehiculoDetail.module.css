@@ -23,6 +23,20 @@
   background: var(--bg-active);
 }
 
+.recibir {
+  background: var(--primary);
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bg-surface);
+}
+
+.recibir:hover {
+  background: var(--primary-hover);
+}
+
 .title {
   flex: 1;
   font-size: 22px;

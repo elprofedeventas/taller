@@ -2,11 +2,18 @@ import { useState, useEffect } from 'react';
 import { getClient, createClient, updateClient } from '../../services/clientes';
 import styles from './ClienteForm.module.css';
 
+function derivarTipoId(identificacion) {
+  const limpio = (identificacion || '').replace(/\D/g, '');
+  if (limpio.length === 13) return '04';
+  return '05';
+}
+
 export default function ClienteForm({ clienteId, navigate, auth }) {
   const isEdit = !!clienteId;
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [identificacion, setIdentificacion] = useState('');
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -24,6 +31,7 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
           setName(c.name);
           setPhone(c.phone);
           setEmail(c.email || '');
+          setIdentificacion(c.identificacion || '');
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -45,11 +53,16 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
     setSaving(true);
     setError(null);
     try {
+      const tipoId = derivarTipoId(identificacion);
       if (isEdit) {
-        await updateClient(auth.session, clienteId, { name, phone, email });
+        await updateClient(auth.session, clienteId, {
+          name, phone, email, identificacion, tipoId
+        });
         navigate('cliente-detail', { id: clienteId });
       } else {
-        const c = await createClient(auth.session, { name, phone, email });
+        const c = await createClient(auth.session, {
+          name, phone, email, identificacion, tipoId
+        });
         navigate('cliente-detail', { id: c.id });
       }
     } catch (e) {
@@ -101,6 +114,20 @@ export default function ClienteForm({ clienteId, navigate, auth }) {
             disabled={saving}
             required
             placeholder="0987654321 o +593..."
+          />
+        </label>
+
+        <label className={styles.label}>
+          Cedula o RUC (opcional, para facturacion)
+          <input
+            type="text"
+            className={styles.input}
+            value={identificacion}
+            onChange={e => setIdentificacion(e.target.value)}
+            disabled={saving}
+            placeholder="10 digitos cedula o 13 digitos RUC"
+            inputMode="numeric"
+            maxLength={13}
           />
         </label>
 

@@ -3,11 +3,14 @@ import {
   getOT, updateOT, changeOTStatus, calculateTotals, round2,
   nextStatus, STATUS_LABEL
 } from '../../services/workOrders';
+import { getClient, updateClient } from '../../services/clientes';
 import { listMechanics } from '../../services/users';
+import { listCatalogo } from '../../services/catalogo';
 import { WhatsAppButton } from '../../components/WhatsAppButton';
 import { templatesByIds } from '../../services/whatsapp';
 import BotonFacturar from '../facturacion/BotonFacturar';
 import { otToFacturaItems, otToReceptor } from '../facturacion/otHelpers';
+import { formatPhoneForDisplay } from '../../utils/formatPhone';
 import StatusBadge from './StatusBadge';
 import Stepper from './Stepper';
 import styles from './OTDetail.module.css';
@@ -16,7 +19,10 @@ const FINAL_STATUSES = new Set(['entregado', 'cancelado']);
 
 export default function OTDetail({ otId, navigate, auth }) {
   const [ot, setOT] = useState(null);
+  const [client, setClient] = useState(null);
   const [mechanics, setMechanics] = useState([]);
+  const [catalogoMO, setCatalogoMO] = useState([]);
+  const [catalogoRep, setCatalogoRep] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -32,7 +38,12 @@ export default function OTDetail({ otId, navigate, auth }) {
       setLoading(true);
       setError(null);
       try {
-        const [o, mechs] = await Promise.all([getOT(otId), listMechanics()]);
+        const [o, mechs, catMO, catRep] = await Promise.all([
+          getOT(otId),
+          listMechanics(),
+          listCatalogo('mano_obra').catch(() => []),
+          listCatalogo('repuesto').catch(() => [])
+        ]);
         if (cancelled) return;
         if (!o) {
           setError('OT no encontrada.');
@@ -41,6 +52,14 @@ export default function OTDetail({ otId, navigate, auth }) {
           setTasks(o.tasks || []);
           setParts(o.parts || []);
           setMechanics(mechs);
+          setCatalogoMO(catMO);
+          setCatalogoRep(catRep);
+          // Fetch cliente fresco para precargar receptor de factura.
+          if (o.clientId) {
+            getClient(o.clientId).then(c => {
+              if (!cancelled) setClient(c);
+            }).catch(() => {});
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e.message);
@@ -90,6 +109,17 @@ export default function OTDetail({ otId, navigate, auth }) {
     setTasks(prev => [...prev, { descripcion: '', horas: 1, precioUnit: 0, total: 0 }]);
   }
 
+  function handleTaskDescChange(index, value) {
+    // Si el valor matchea un item del catalogo de mano de obra, autocompleta
+    // el precioUnit. El usuario puede editarlo despues.
+    const match = catalogoMO.find(c => c.nombre === value);
+    if (match) {
+      handleUpdateTask(index, { descripcion: value, precioUnit: match.precio });
+    } else {
+      handleUpdateTask(index, { descripcion: value });
+    }
+  }
+
   function handleUpdateTask(index, fields) {
     setTasks(prev => prev.map((t, i) => {
       if (i !== index) return t;
@@ -105,6 +135,15 @@ export default function OTDetail({ otId, navigate, auth }) {
 
   function handleAddPart() {
     setParts(prev => [...prev, { descripcion: '', cantidad: 1, precioUnit: 0, total: 0 }]);
+  }
+
+  function handlePartDescChange(index, value) {
+    const match = catalogoRep.find(c => c.nombre === value);
+    if (match) {
+      handleUpdatePart(index, { descripcion: value, precioUnit: match.precio });
+    } else {
+      handleUpdatePart(index, { descripcion: value });
+    }
   }
 
   function handleUpdatePart(index, fields) {
@@ -171,6 +210,12 @@ export default function OTDetail({ otId, navigate, auth }) {
 
   async function handleAdvanceStatus() {
     if (saving || !ot || !next) return;
+    // Guard: si hay cambios sin guardar en tareas/repuestos, bloquear
+    // el avance hasta que el usuario guarde explicitamente.
+    if (listsDirty) {
+      setError('Primero, guarda el registro de mano de obra y/o repuestos.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -240,7 +285,10 @@ export default function OTDetail({ otId, navigate, auth }) {
         >
           &larr; Volver
         </button>
-        <h1 className={styles.title}>Orden de Trabajo</h1>
+        <div className={styles.titleBlock}>
+          <h1 className={styles.title}>{ot.numeroOT || 'Orden de Trabajo'}</h1>
+          {ot.numeroOT && <span className={styles.titleSub}>Orden de Trabajo</span>}
+        </div>
         <StatusBadge status={ot.status} />
         <WhatsAppButton
           phone={ot.clientPhone}
@@ -281,7 +329,7 @@ export default function OTDetail({ otId, navigate, auth }) {
           </div>
           <div className={styles.infoBlock}>
             <span className={styles.infoLabel}>Telefono</span>
-            <span>{ot.clientPhone}</span>
+            <span>{formatPhoneForDisplay(ot.clientPhone)}</span>
           </div>
         </div>
         <div className={styles.problemaBlock}>
@@ -319,14 +367,24 @@ export default function OTDetail({ otId, navigate, auth }) {
         {tasks.length === 0 && (
           <p className={styles.emptyHint}>Sin tareas registradas.</p>
         )}
+        {catalogoMO.length > 0 && (
+          <datalist id="catalogo-mano-obra">
+            {catalogoMO.map(c => (
+              <option key={c.id} value={c.nombre}>
+                ${Number(c.precio || 0).toFixed(2)}
+              </option>
+            ))}
+          </datalist>
+        )}
         {tasks.map((t, i) => (
           <div key={i} className={styles.lineRow}>
             <input
               type="text"
+              list={catalogoMO.length > 0 ? 'catalogo-mano-obra' : undefined}
               className={`${styles.lineInput} ${styles.lineDesc}`}
               placeholder="Descripcion"
               value={t.descripcion}
-              onChange={e => handleUpdateTask(i, { descripcion: e.target.value })}
+              onChange={e => handleTaskDescChange(i, e.target.value)}
               disabled={!canEditLists || saving}
             />
             <input
@@ -387,14 +445,24 @@ export default function OTDetail({ otId, navigate, auth }) {
         {parts.length === 0 && (
           <p className={styles.emptyHint}>Sin repuestos registrados.</p>
         )}
+        {catalogoRep.length > 0 && (
+          <datalist id="catalogo-repuestos">
+            {catalogoRep.map(c => (
+              <option key={c.id} value={c.nombre}>
+                ${Number(c.precio || 0).toFixed(2)}
+              </option>
+            ))}
+          </datalist>
+        )}
         {parts.map((p, i) => (
           <div key={i} className={styles.lineRow}>
             <input
               type="text"
+              list={catalogoRep.length > 0 ? 'catalogo-repuestos' : undefined}
               className={`${styles.lineInput} ${styles.lineDesc}`}
               placeholder="Descripcion"
               value={p.descripcion}
-              onChange={e => handleUpdatePart(i, { descripcion: e.target.value })}
+              onChange={e => handlePartDescChange(i, e.target.value)}
               disabled={!canEditLists || saving}
             />
             <input
@@ -488,7 +556,7 @@ export default function OTDetail({ otId, navigate, auth }) {
           <button
             type="button"
             className={styles.verFacturaButton}
-            onClick={() => navigate('facturacion')}
+            onClick={() => navigate('facturacion', { facturaId: ot.facturaId })}
           >
             Ver RIDE
           </button>
@@ -517,24 +585,64 @@ export default function OTDetail({ otId, navigate, auth }) {
           </button>
         )}
         {ot.status === 'listo' && !isMechanic && (
-          <button
-            type="button"
-            className={styles.advanceButton}
-            onClick={() => navigate('cobro-form', { otId: ot.id })}
-            disabled={saving}
-          >
-            Cobrar OT
-          </button>
+          <>
+            <WhatsAppButton
+              phone={ot.clientPhone}
+              templates={templatesByIds(['vehiculo_listo'])}
+              variables={{
+                clientName: ot.clientName,
+                vehiclePlaca: ot.vehiclePlaca,
+                vehicleMarca: ot.vehicleMarca,
+                vehicleModelo: ot.vehicleModelo,
+                totalGeneral: computedTotals.totalGeneral.toFixed(2)
+              }}
+              context={{ collection: 'workOrders', docId: ot.id }}
+              buttonLabel="Avisar por WhatsApp"
+              auth={auth}
+            />
+            <button
+              type="button"
+              className={styles.advanceButton}
+              onClick={() => navigate('cobro-form', { otId: ot.id })}
+              disabled={saving}
+            >
+              Cobrar OT
+            </button>
+          </>
         )}
         {ot.status === 'entregado' && !isMechanic && !ot.facturaId && (
           <BotonFacturar
             auth={auth}
-            receptor={otToReceptor(ot)}
+            receptor={otToReceptor(ot, client)}
             items={otToFacturaItems(ot)}
             workOrderId={ot.id}
             label="Emitir factura electronica"
             variant="primary"
-            onFacturaEmitida={async (data) => {
+            onFacturaEmitida={async (data, finalReceptor) => {
+              // Backfill cliente: si el receptor termino con cedula nueva
+              // o phone/email que el cliente no tenia, actualizar el cliente
+              // para que la proxima factura ya venga precargada.
+              if (client && finalReceptor) {
+                const cambios = {};
+                if (finalReceptor.identificacion && finalReceptor.identificacion !== (client.identificacion || '')) {
+                  cambios.identificacion = finalReceptor.identificacion;
+                  cambios.tipoId = finalReceptor.tipoId || '05';
+                }
+                if (finalReceptor.email && finalReceptor.email !== (client.email || '')) {
+                  cambios.email = finalReceptor.email;
+                }
+                if (Object.keys(cambios).length > 0) {
+                  try {
+                    await updateClient(auth.session, client.id, {
+                      name: client.name,
+                      phone: client.phone,
+                      email: cambios.email !== undefined ? cambios.email : (client.email || null),
+                      identificacion: cambios.identificacion !== undefined ? cambios.identificacion : (client.identificacion || ''),
+                      tipoId: cambios.tipoId !== undefined ? cambios.tipoId : (client.tipoId || '05')
+                    });
+                  } catch (_) {}
+                }
+              }
               try {
                 await updateOT(auth.session, ot.id, {
                   facturaId: data.id,

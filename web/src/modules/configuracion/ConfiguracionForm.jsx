@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getTallerConfig, setTallerConfig } from '../../services/config';
 import SeccionCertificado from './SeccionCertificado';
+import CatalogoSeccion from './CatalogoSeccion';
 import styles from './ConfiguracionForm.module.css';
 
 export default function ConfiguracionForm({ auth }) {
@@ -288,6 +289,8 @@ export default function ConfiguracionForm({ auth }) {
       </form>
 
       <SeccionCertificado auth={auth} />
+
+      <CatalogoSeccion auth={auth} />
     </div>
   );
 }

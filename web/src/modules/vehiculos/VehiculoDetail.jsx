@@ -66,6 +66,16 @@ export default function VehiculoDetail({ vehiculoId, navigate }) {
         <h1 className={styles.title}>{vehicle.placa}</h1>
         <button
           type="button"
+          className={styles.recibir}
+          onClick={() => navigate('recepcion', {
+            vehicleId: vehicle.id,
+            clientId: vehicle.clientId
+          })}
+        >
+          Recibir vehiculo
+        </button>
+        <button
+          type="button"
           className={styles.edit}
           onClick={() => navigate('vehiculo-form', { id: vehicle.id })}
         >

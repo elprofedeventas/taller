@@ -132,7 +132,7 @@ export default function ModalFacturacion({
         paymentId
       });
       setResultado(data);
-      if (onFacturaEmitida) onFacturaEmitida(data);
+      if (onFacturaEmitida) onFacturaEmitida(data, receptor);
     } catch (e) {
       setError(e.message);
       setErrorMensajes(Array.isArray(e.mensajes) ? e.mensajes : []);

@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
-import { searchByPhone, getClient, createClient, updateClient } from '../../services/clientes';
-import { searchByPlaca, listVehiclesByClient, createVehicle } from '../../services/vehiculos';
+import { useState, useEffect, useRef } from 'react';
+import {
+  searchByPhone, searchByName, getClient, createClient, updateClient
+} from '../../services/clientes';
+import {
+  searchByPlaca, listVehiclesByClient, createVehicle, getVehicle
+} from '../../services/vehiculos';
 import { createOT } from '../../services/workOrders';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
+import { fmtMiles, parseMiles } from '../../utils/formatMiles';
 import styles from './RecepcionForm.module.css';
 
 // Detecta si el input es probable telefono (solo digitos + separadores
@@ -24,10 +29,19 @@ function derivarTipoId(identificacion) {
   return '05';
 }
 
-export default function RecepcionForm({ navigate, auth }) {
+export default function RecepcionForm({
+  navigate, auth,
+  preselectVehicleId = null,
+  preselectClientId = null
+}) {
   const [searchInput, setSearchInput] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
+
+  // Sugerencias del autocomplete (busqueda por nombre/placa/telefono).
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const suggestTimerRef = useRef(null);
 
   const [client, setClient] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -63,6 +77,113 @@ export default function RecepcionForm({ navigate, auth }) {
   useEffect(() => {
     setClientIdentificacion(client?.identificacion || '');
   }, [client?.id]);
+
+  // Precarga vehiculo + cliente si vienen como params desde VehiculoDetail.
+  useEffect(() => {
+    if (!preselectVehicleId && !preselectClientId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (preselectVehicleId) {
+          const v = await getVehicle(preselectVehicleId);
+          if (cancelled || !v) return;
+          const c = await getClient(v.clientId);
+          if (cancelled) return;
+          setVehicle(v);
+          setClient(c);
+          setSearchAttempted(true);
+        } else if (preselectClientId) {
+          const c = await getClient(preselectClientId);
+          if (cancelled || !c) return;
+          const vehs = await listVehiclesByClient(c.id);
+          if (cancelled) return;
+          setClient(c);
+          setClientVehicles(vehs);
+          setSearchAttempted(true);
+        }
+      } catch (_) {
+        // silencioso: si falla la precarga, el form queda vacio y el usuario busca
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [preselectVehicleId, preselectClientId]);
+
+  // Autocomplete: ejecuta searchByName/searchByPlaca/searchByPhone con debounce
+  // y muestra sugerencias mientras el usuario tipea.
+  useEffect(() => {
+    if (client || !searchInput || searchInput.trim().length < 2) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      return;
+    }
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    suggestTimerRef.current = setTimeout(async () => {
+      try {
+        const q = searchInput.trim();
+        const isDigits = PHONE_INPUT.test(q);
+        // Si parecen digitos -> busca placa + telefono. Si tiene letras -> nombre + placa.
+        const [byName, byPlaca, byPhone] = await Promise.all([
+          isDigits ? Promise.resolve([]) : searchByName(q),
+          searchByPlaca(q),
+          isDigits ? searchByPhone(q) : Promise.resolve([])
+        ]);
+
+        // Convierte cada match al formato uniforme {type, label, sublabel, client?, vehicle?}
+        const items = [];
+        byName.forEach(c => items.push({
+          type: 'cliente', label: c.name, sublabel: formatPhoneForDisplay(c.phone),
+          client: c
+        }));
+        byPlaca.forEach(v => items.push({
+          type: 'vehiculo', label: v.placa, sublabel: `${v.marca} ${v.modelo} · ${v.clientName}`,
+          vehicle: v
+        }));
+        byPhone.forEach(c => {
+          if (!items.find(i => i.client?.id === c.id)) {
+            items.push({
+              type: 'cliente', label: c.name, sublabel: formatPhoneForDisplay(c.phone),
+              client: c
+            });
+          }
+        });
+
+        setSuggestions(items.slice(0, 8));
+        setSuggestOpen(items.length > 0);
+      } catch (_) {
+        setSuggestions([]);
+      }
+    }, 200);
+    return () => {
+      if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    };
+  }, [searchInput, client]);
+
+  async function handlePickSuggestion(item) {
+    setSuggestOpen(false);
+    setSuggestions([]);
+    setSearchInput('');
+    setSearchAttempted(true);
+    setError(null);
+    try {
+      if (item.type === 'cliente') {
+        const vehs = await listVehiclesByClient(item.client.id);
+        setClient(item.client);
+        setVehicle(null);
+        setClientVehicles(vehs);
+        setShowCreateClient(false);
+        setShowCreateVehicle(false);
+      } else if (item.type === 'vehiculo') {
+        const c = await getClient(item.vehicle.clientId);
+        setVehicle(item.vehicle);
+        setClient(c);
+        setClientVehicles([]);
+        setShowCreateClient(false);
+        setShowCreateVehicle(false);
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   async function handleSearch(e) {
     if (e) e.preventDefault();
@@ -291,24 +412,48 @@ export default function RecepcionForm({ navigate, auth }) {
         <h2 className={styles.subtitle}>1. Cliente y vehiculo</h2>
 
         {!client && (
-          <form className={styles.searchForm} onSubmit={handleSearch}>
-            <input
-              type="search"
-              className={styles.searchInput}
-              placeholder="Placa o telefono"
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              disabled={searching}
-              autoFocus
-            />
-            <button
-              type="submit"
-              className={styles.searchButton}
-              disabled={searching || !searchInput.trim()}
-            >
-              {searching ? 'Buscando...' : 'Buscar'}
-            </button>
-          </form>
+          <div className={styles.searchWrap}>
+            <form className={styles.searchForm} onSubmit={handleSearch}>
+              <input
+                type="search"
+                className={styles.searchInput}
+                placeholder="Nombre, placa o telefono"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setSuggestOpen(true)}
+                onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+                disabled={searching}
+                autoFocus
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                className={styles.searchButton}
+                disabled={searching || !searchInput.trim()}
+              >
+                {searching ? 'Buscando...' : 'Buscar'}
+              </button>
+            </form>
+
+            {suggestOpen && suggestions.length > 0 && (
+              <ul className={styles.suggestions}>
+                {suggestions.map((s, i) => (
+                  <li key={`${s.type}-${i}`}>
+                    <button
+                      type="button"
+                      className={styles.suggestionItem}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handlePickSuggestion(s)}
+                    >
+                      <span className={styles.suggestionLabel}>{s.label}</span>
+                      <span className={styles.suggestionMeta}>{s.sublabel}</span>
+                      <span className={styles.suggestionType}>{s.type}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         {client && (
@@ -546,12 +691,13 @@ export default function RecepcionForm({ navigate, auth }) {
             <label className={styles.label}>
               Ultimo kilometraje (opc)
               <input
-                type="number"
+                type="text"
                 className={styles.input}
-                value={newVehLastKm}
-                onChange={e => setNewVehLastKm(e.target.value)}
+                value={fmtMiles(newVehLastKm)}
+                onChange={e => setNewVehLastKm(parseMiles(e.target.value))}
                 disabled={processing}
-                min="0"
+                inputMode="numeric"
+                placeholder="300.000"
               />
             </label>
             <button
