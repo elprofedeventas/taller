@@ -20,6 +20,10 @@ export default function CobroForm({ otId, navigate, auth }) {
   const [formaPago, setFormaPago] = useState('efectivo');
   const [conGarantia, setConGarantia] = useState(false);
   const [garantiaDias, setGarantiaDias] = useState('30');
+  // Proximo mantenimiento: 'ninguno' | 'meses' | 'km'
+  const [proxMantTipo, setProxMantTipo] = useState('ninguno');
+  const [proxMantMeses, setProxMantMeses] = useState('3');
+  const [proxMantKm, setProxMantKm] = useState('5000');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -107,11 +111,20 @@ export default function CobroForm({ otId, navigate, auth }) {
       const garantia = conGarantia && Number(garantiaDias) > 0
         ? { dias: Number(garantiaDias) }
         : null;
+
+      let proximoMantenimiento = null;
+      if (proxMantTipo === 'meses' && Number(proxMantMeses) > 0) {
+        proximoMantenimiento = { tipo: 'meses', valor: Number(proxMantMeses) };
+      } else if (proxMantTipo === 'km' && Number(proxMantKm) > 0) {
+        proximoMantenimiento = { tipo: 'km', valor: Number(proxMantKm) };
+      }
+
       const payment = await createPayment(auth.session, {
         ot,
         monto,
         formaPago,
-        garantia
+        garantia,
+        proximoMantenimiento
       });
       navigate('comprobante', { id: payment.id });
     } catch (e) {
@@ -296,6 +309,68 @@ export default function CobroForm({ otId, navigate, auth }) {
             />
             dias
           </label>
+        </fieldset>
+
+        <fieldset className={styles.garantiaBox}>
+          <legend className={styles.garantiaLegend}>Proximo mantenimiento</legend>
+          <label className={styles.radioLabel}>
+            <input
+              type="radio"
+              name="proxMant"
+              checked={proxMantTipo === 'ninguno'}
+              onChange={() => setProxMantTipo('ninguno')}
+              disabled={saving || !canCobrar}
+            />
+            No aplica
+          </label>
+          <label className={styles.radioLabel}>
+            <input
+              type="radio"
+              name="proxMant"
+              checked={proxMantTipo === 'meses'}
+              onChange={() => setProxMantTipo('meses')}
+              disabled={saving || !canCobrar}
+            />
+            En
+            <select
+              className={styles.garantiaDias}
+              value={proxMantMeses}
+              onChange={e => setProxMantMeses(e.target.value)}
+              disabled={saving || !canCobrar || proxMantTipo !== 'meses'}
+            >
+              {[1, 2, 3, 4, 5, 6, 9, 12].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            mes{Number(proxMantMeses) === 1 ? '' : 'es'}
+          </label>
+          <label className={styles.radioLabel}>
+            <input
+              type="radio"
+              name="proxMant"
+              checked={proxMantTipo === 'km'}
+              onChange={() => setProxMantTipo('km')}
+              disabled={saving || !canCobrar}
+            />
+            En
+            <input
+              type="number"
+              className={styles.garantiaDias}
+              value={proxMantKm}
+              onChange={e => setProxMantKm(e.target.value)}
+              disabled={saving || !canCobrar || proxMantTipo !== 'km'}
+              min="100"
+              step="100"
+              style={{ width: '90px' }}
+            />
+            km
+          </label>
+          {proxMantTipo === 'km' && (
+            <p className={styles.proxMantHint}>
+              Por km queda registrado en la OT pero no genera recordatorio
+              automatico (no sabemos cuando alcanzara ese kilometraje).
+            </p>
+          )}
         </fieldset>
 
         {error && <p className={styles.error} role="alert">{error}</p>}

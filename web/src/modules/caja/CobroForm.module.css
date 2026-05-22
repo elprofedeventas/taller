@@ -274,3 +274,11 @@
   opacity: 0.4;
   background: var(--bg-surface);
 }
+
+.proxMantHint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding-left: 26px;
+}

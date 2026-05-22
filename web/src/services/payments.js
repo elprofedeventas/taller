@@ -33,7 +33,13 @@ export async function getPayment(id) {
  * Firestore reintentara la transaccion; en el segundo intento leera
  * status='entregado' y abortara con error explicito.
  */
-export async function createPayment(session, { ot, monto, formaPago, garantia = null }) {
+export async function createPayment(session, {
+  ot,
+  monto,
+  formaPago,
+  garantia = null,
+  proximoMantenimiento = null
+}) {
   const m = Number(monto);
   if (!Number.isFinite(m) || m <= 0) {
     throw new Error('Monto invalido. Debe ser mayor a 0.');
@@ -54,6 +60,28 @@ export async function createPayment(session, { ot, monto, formaPago, garantia = 
       fechaVencimiento: Timestamp.fromDate(fv),
       vehicleId: ot.vehicleId
     };
+  }
+
+  // Proximo mantenimiento opcional: tipo 'meses' calcula fechaEstimada
+  // (queryable desde la bandeja Contactar). Tipo 'km' guarda valor pero
+  // sin fechaEstimada (no entra al recordatorio automatico, solo informativo).
+  let proxMantData = null;
+  if (proximoMantenimiento && Number(proximoMantenimiento.valor) > 0) {
+    const tipo = proximoMantenimiento.tipo;
+    const valor = Math.round(Number(proximoMantenimiento.valor));
+    const base = {
+      tipo,
+      valor,
+      recordatorioEnviado: false,
+      vehicleId: ot.vehicleId,
+      clientId: ot.clientId
+    };
+    if (tipo === 'meses') {
+      const f = new Date();
+      f.setMonth(f.getMonth() + valor);
+      base.fechaEstimada = Timestamp.fromDate(f);
+    }
+    proxMantData = base;
   }
 
   const otRef = doc(db, 'workOrders', ot.id);
@@ -96,7 +124,8 @@ export async function createPayment(session, { ot, monto, formaPago, garantia = 
       statusChangedAt: serverTimestamp(),
       statusHistory: [...(data.statusHistory || []), historyEntry],
       closedAt: serverTimestamp(),
-      ...(garantiaData ? { garantia: garantiaData } : {})
+      ...(garantiaData ? { garantia: garantiaData } : {}),
+      ...(proxMantData ? { proximoMantenimiento: proxMantData } : {})
     }));
 
     transaction.update(clientRef, withActor(session, {

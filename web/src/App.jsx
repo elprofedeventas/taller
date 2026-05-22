@@ -12,6 +12,7 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import ColaOT from './modules/ot/ColaOT';
 import OTDetail from './modules/ot/OTDetail';
 import TableroOT from './modules/tablero/TableroOT';
+import ContactarList from './modules/contactar/ContactarList';
 import UsuariosList from './modules/usuarios/UsuariosList';
 import UsuarioForm from './modules/usuarios/UsuarioForm';
 import CajaList from './modules/caja/CajaList';
@@ -29,6 +30,7 @@ const MODULES = [
   { route: 'tablero', label: 'Tablero', enabled: true, allowedRoles: null },
   { route: 'ot', label: 'OTs', enabled: true, allowedRoles: null },
   { route: 'caja', label: 'Caja', enabled: true, allowedRoles: null },
+  { route: 'contactar', label: 'Contactar', enabled: true, allowedRoles: ['owner', 'manager', 'recepcionista'] },
   { route: 'facturacion', label: 'Facturacion', enabled: true, allowedRoles: ['owner', 'manager', 'recepcionista'] },
   { route: 'panel', label: 'Panel', enabled: true, allowedRoles: ['owner', 'manager'] },
   { route: 'usuarios', label: 'Usuarios', enabled: true, allowedRoles: ['owner'] },
@@ -140,6 +142,8 @@ function renderRoute(route, navigate, auth) {
       return <ColaOT key={`cola-${k}`} navigate={navigate} auth={auth} />;
     case 'tablero':
       return <TableroOT key={`tab-${k}`} navigate={navigate} auth={auth} />;
+    case 'contactar':
+      return <ContactarList key={`cont-${k}`} navigate={navigate} auth={auth} />;
     case 'ot-detail':
       return (
         <OTDetail

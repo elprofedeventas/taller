@@ -64,6 +64,14 @@
         { "fieldPath": "facturaOriginalId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "workOrders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "proximoMantenimiento.recordatorioEnviado", "order": "ASCENDING" },
+        { "fieldPath": "proximoMantenimiento.fechaEstimada", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
