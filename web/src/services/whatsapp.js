@@ -40,6 +40,11 @@ export const WHATSAPP_TEMPLATES = [
     id: 'encuesta_satisfaccion',
     name: 'Encuesta de satisfaccion',
     template: 'Hola {clientName}, gracias por confiar en nosotros para tu {vehicleMarca} {vehicleModelo} placa {vehiclePlaca}. Nos gustaria saber como fue tu experiencia. Del 1 al 5, que calificacion nos darias? Tu opinion nos ayuda a mejorar. Saludos cordiales.'
+  },
+  {
+    id: 'cotizacion_formal',
+    name: 'Enviar cotizacion',
+    template: 'Hola {clientName}, te enviamos la cotizacion para tu {vehicleMarca} {vehicleModelo} placa {vehiclePlaca}. El total estimado es ${totalGeneral}. Esta cotizacion tiene vigencia de 15 dias. Responde a este mensaje para aprobar el trabajo. Saludos cordiales.'
   }
 ];
 

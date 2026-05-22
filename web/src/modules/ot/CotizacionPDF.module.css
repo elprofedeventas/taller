@@ -1,0 +1,264 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(880px, 96vw);
+  max-height: 94dvh;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .overlay { display: none; }
+  .panel {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.headerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnSecondary {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: var(--bg-active);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.5;
+}
+
+.btnClose {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btnClose:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.body {
+  overflow-y: auto;
+  padding: 18px;
+  background: var(--bg-app);
+  flex: 1;
+}
+
+/* ============================================================
+   Pagina A4 (preview)
+   ============================================================ */
+.page {
+  background: white;
+  color: #111;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 36px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tallerHeader {
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.tallerName {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+}
+
+.tallerMeta {
+  font-size: 11px;
+  color: #444;
+  margin-top: 4px;
+}
+
+.docTitle {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.docTitle h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.docMeta {
+  display: flex;
+  gap: 18px;
+  font-size: 11px;
+  color: #333;
+}
+
+.dataBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.dataRow {
+  font-size: 12px;
+}
+
+.dataRow strong {
+  color: #111;
+  font-weight: 600;
+}
+
+.tableBlock {
+  margin-bottom: 14px;
+}
+
+.tableTitle {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #111;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.table th {
+  background: #F0F0F0;
+  text-align: left;
+  padding: 5px 8px;
+  font-weight: 700;
+  border-bottom: 1.5px solid #888;
+}
+
+.table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #EEE;
+}
+
+.tR {
+  text-align: right;
+}
+
+.totalesBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  margin-top: 16px;
+  font-size: 12px;
+}
+
+.tFila {
+  display: flex;
+  justify-content: space-between;
+  min-width: 260px;
+  padding: 3px 0;
+  color: #444;
+}
+
+.tFila span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.tFilaTotal {
+  display: flex;
+  justify-content: space-between;
+  min-width: 260px;
+  padding: 6px 0;
+  border-top: 2px solid #111;
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.tFilaTotal span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  margin-top: 22px;
+  padding-top: 10px;
+  border-top: 1px solid #DDD;
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
+}
+
+.footer p {
+  margin: 2px 0;
+}

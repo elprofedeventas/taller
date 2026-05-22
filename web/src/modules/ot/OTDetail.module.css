@@ -343,6 +343,20 @@
   opacity: 0.5;
 }
 
+.cotizacionButton {
+  background: var(--primary);
+  color: var(--bg-surface);
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cotizacionButton:hover {
+  background: var(--primary-hover);
+}
+
 .cancelButton {
   background: transparent;
   border: 1px solid var(--danger);

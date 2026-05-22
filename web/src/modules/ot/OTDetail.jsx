@@ -6,6 +6,7 @@ import {
 import { getClient, updateClient } from '../../services/clientes';
 import { listMechanics } from '../../services/users';
 import { listCatalogo } from '../../services/catalogo';
+import { getTallerConfig } from '../../services/config';
 import { WhatsAppButton } from '../../components/WhatsAppButton';
 import { templatesByIds } from '../../services/whatsapp';
 import BotonFacturar from '../facturacion/BotonFacturar';
@@ -13,6 +14,7 @@ import { otToFacturaItems, otToReceptor } from '../facturacion/otHelpers';
 import { formatPhoneForDisplay } from '../../utils/formatPhone';
 import StatusBadge from './StatusBadge';
 import Stepper from './Stepper';
+import CotizacionPDF from './CotizacionPDF';
 import styles from './OTDetail.module.css';
 
 const FINAL_STATUSES = new Set(['entregado', 'cancelado']);
@@ -23,6 +25,8 @@ export default function OTDetail({ otId, navigate, auth }) {
   const [mechanics, setMechanics] = useState([]);
   const [catalogoMO, setCatalogoMO] = useState([]);
   const [catalogoRep, setCatalogoRep] = useState([]);
+  const [tallerConfig, setTallerConfig] = useState(null);
+  const [mostrarCotizacion, setMostrarCotizacion] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -38,13 +42,15 @@ export default function OTDetail({ otId, navigate, auth }) {
       setLoading(true);
       setError(null);
       try {
-        const [o, mechs, catMO, catRep] = await Promise.all([
+        const [o, mechs, catMO, catRep, cfg] = await Promise.all([
           getOT(otId),
           listMechanics(),
           listCatalogo('mano_obra').catch(() => []),
-          listCatalogo('repuesto').catch(() => [])
+          listCatalogo('repuesto').catch(() => []),
+          getTallerConfig().catch(() => null)
         ]);
         if (cancelled) return;
+        setTallerConfig(cfg);
         if (!o) {
           setError('OT no encontrada.');
         } else {
@@ -625,6 +631,15 @@ export default function OTDetail({ otId, navigate, auth }) {
             Marcar como {STATUS_LABEL[next]}
           </button>
         )}
+        {ot.status === 'aprobacion' && !isMechanic && (
+          <button
+            type="button"
+            className={styles.cotizacionButton}
+            onClick={() => setMostrarCotizacion(true)}
+          >
+            Enviar cotizacion
+          </button>
+        )}
         {canCancel && (
           <button
             type="button"
@@ -709,6 +724,18 @@ export default function OTDetail({ otId, navigate, auth }) {
           />
         )}
       </section>
+
+      {mostrarCotizacion && (
+        <CotizacionPDF
+          auth={auth}
+          ot={ot}
+          tasks={tasks}
+          parts={parts}
+          totales={computedTotals}
+          config={tallerConfig}
+          onCerrar={() => setMostrarCotizacion(false)}
+        />
+      )}
     </div>
   );
 }
