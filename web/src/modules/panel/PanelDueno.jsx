@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { loadPanelKPIs, currentMonth } from '../../services/panel';
+import { calcularAlertas } from '../../services/alertas';
 import styles from './PanelDueno.module.css';
 
 const MES_LABEL = [
@@ -9,7 +10,9 @@ const MES_LABEL = [
 
 export default function PanelDueno({ navigate, auth }) {
   const [kpis, setKpis] = useState(null);
+  const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAlertas, setLoadingAlertas] = useState(true);
   const [error, setError] = useState(null);
 
   const period = useMemo(() => currentMonth(), []);
@@ -32,6 +35,26 @@ export default function PanelDueno({ navigate, auth }) {
     load();
     return () => { cancelled = true; };
   }, [period.year, period.month]);
+
+  // Alertas: una sola carga al montar (no depende del period seleccionado).
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingAlertas(true);
+    calcularAlertas()
+      .then(arr => { if (!cancelled) setAlertas(arr); })
+      .catch(() => { if (!cancelled) setAlertas([]); })
+      .finally(() => { if (!cancelled) setLoadingAlertas(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  function accionAlerta(a) {
+    if (a.otId) return () => navigate('ot-detail', { id: a.otId });
+    if (a.clientId) return () => navigate('cliente-detail', { id: a.clientId });
+    if (a.tipo === 'recordatorios') return () => navigate('contactar');
+    if (a.tipo === 'pendientes_cobro') return () => navigate('caja');
+    if (a.tipo === 'certificado') return () => navigate('configuracion');
+    return null;
+  }
 
   if (auth.role !== 'owner' && auth.role !== 'manager') {
     return (
@@ -58,6 +81,39 @@ export default function PanelDueno({ navigate, auth }) {
           Ver historico
         </button>
       </header>
+
+      {!loadingAlertas && alertas.length > 0 && (
+        <section className={styles.alertasSection}>
+          <h2 className={styles.alertasTitle}>
+            Atencion <span className={styles.alertasCount}>({alertas.length})</span>
+          </h2>
+          <ul className={styles.alertasList}>
+            {alertas.map((a, i) => {
+              const action = accionAlerta(a);
+              return (
+                <li key={i} className={`${styles.alerta} ${styles[`alerta_${a.prioridad}`]}`}>
+                  <span className={styles.alertaDot} aria-hidden="true" />
+                  <span className={styles.alertaText}>{a.mensaje}</span>
+                  {action && (
+                    <button
+                      type="button"
+                      className={styles.alertaBtn}
+                      onClick={action}
+                    >
+                      {a.otId ? 'Ver OT'
+                        : a.clientId ? 'Ver cliente'
+                        : a.tipo === 'recordatorios' ? 'Ver lista'
+                        : a.tipo === 'pendientes_cobro' ? 'Ir a Caja'
+                        : a.tipo === 'certificado' ? 'Ir a Configuracion'
+                        : 'Abrir'}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {loading && <p>Cargando KPIs...</p>}
       {error && <p className={styles.error}>{error}</p>}
