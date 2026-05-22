@@ -124,6 +124,10 @@ export async function createPayment(session, {
       statusChangedAt: serverTimestamp(),
       statusHistory: [...(data.statusHistory || []), historyEntry],
       closedAt: serverTimestamp(),
+      // Inicializa el flag para que la query
+      // where('encuestaEnviada', '==', false) en la bandeja 'Contactar'
+      // pueda matchear este doc (Firestore no matchea campos ausentes).
+      encuestaEnviada: false,
       ...(garantiaData ? { garantia: garantiaData } : {}),
       ...(proxMantData ? { proximoMantenimiento: proxMantData } : {})
     }));

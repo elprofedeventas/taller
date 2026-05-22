@@ -137,6 +137,18 @@ export default function PanelDueno({ navigate, auth }) {
               </span>
             </div>
           )}
+
+          {kpis.satisfaccionPromedioMes != null && (
+            <div className={styles.kpiCard}>
+              <span className={styles.kpiLabel}>Satisfaccion promedio</span>
+              <span className={styles.kpiBig}>
+                {kpis.satisfaccionPromedioMes.toFixed(1)} / 5
+              </span>
+              <span className={styles.kpiSub}>
+                Basado en {kpis.satisfaccionRespuestas} respuesta{kpis.satisfaccionRespuestas === 1 ? '' : 's'} del mes
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

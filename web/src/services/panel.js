@@ -101,6 +101,17 @@ export async function loadPanelKPIs({ year, month }) {
     : 0;
   const otsConMargen = closedOTs.filter(ot => Number(ot.margenBruto || 0) > 0).length;
 
+  // Satisfaccion promedio del mes: promedio de las calificaciones 1-5 que
+  // el recepcionista registro en la bandeja Contactar. OTs sin respuesta
+  // registrada se ignoran.
+  const calificaciones = closedOTs
+    .map(ot => Number(ot.encuesta?.calificacion))
+    .filter(c => c >= 1 && c <= 5);
+  const satisfaccionPromedioMes = calificaciones.length > 0
+    ? calificaciones.reduce((s, c) => s + c, 0) / calificaciones.length
+    : null;
+  const satisfaccionRespuestas = calificaciones.length;
+
   // Clientes recurrentes vs nuevos del mes
   const uniqueClientIds = [...new Set(closedOTs.map(o => o.clientId).filter(Boolean))];
   const clientResults = await Promise.all(uniqueClientIds.map(id => getClient(id)));
@@ -130,6 +141,8 @@ export async function loadPanelKPIs({ year, month }) {
     returningClientCount,
     margenBrutoMes,
     margenPorcentajeMes,
-    otsConMargen
+    otsConMargen,
+    satisfaccionPromedioMes,
+    satisfaccionRespuestas
   };
 }

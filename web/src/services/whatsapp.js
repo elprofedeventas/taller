@@ -35,6 +35,11 @@ export const WHATSAPP_TEMPLATES = [
     id: 'gracias_pago',
     name: 'Gracias por el pago',
     template: 'Hola {clientName}, gracias por tu pago de ${monto} por el trabajo en {vehiclePlaca}. Estamos a tu orden.'
+  },
+  {
+    id: 'encuesta_satisfaccion',
+    name: 'Encuesta de satisfaccion',
+    template: 'Hola {clientName}, gracias por confiar en nosotros para tu {vehicleMarca} {vehicleModelo} placa {vehiclePlaca}. Nos gustaria saber como fue tu experiencia. Del 1 al 5, que calificacion nos darias? Tu opinion nos ayuda a mejorar. Saludos cordiales.'
   }
 ];
 

@@ -72,6 +72,15 @@
         { "fieldPath": "proximoMantenimiento.recordatorioEnviado", "order": "ASCENDING" },
         { "fieldPath": "proximoMantenimiento.fechaEstimada", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "workOrders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "encuestaEnviada", "order": "ASCENDING" },
+        { "fieldPath": "closedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
