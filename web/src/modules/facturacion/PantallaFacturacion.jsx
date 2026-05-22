@@ -5,6 +5,7 @@ import { usePaginatedQuery } from '../../hooks/usePaginatedQuery';
 import { getFactura } from '../../services/facturas';
 import { getTallerConfig } from '../../services/config';
 import BotonFacturar from './BotonFacturar';
+import BotonNotaCredito from './BotonNotaCredito';
 import RideFactura from './RideFactura';
 import styles from './PantallaFacturacion.module.css';
 
@@ -129,6 +130,11 @@ export default function PantallaFacturacion({ navigate, auth, autoOpenFacturaId 
                 <span className={`${styles.estado} ${styles[`estado_${f.estado}`]}`}>
                   {ESTADO_LABEL[f.estado] || f.estado}
                 </span>
+                {f.anulada && (
+                  <span className={styles.anuladaBadge}>
+                    Anulada · NC {f.notaCreditoNumero || ''}
+                  </span>
+                )}
                 {f.totales?.total && (
                   <span className={styles.itemTotal}>{fmtMoney(f.totales.total)}</span>
                 )}
@@ -166,7 +172,28 @@ export default function PantallaFacturacion({ navigate, auth, autoOpenFacturaId 
             <div className={styles.modalBody}>
               {cargandoDetalle && <p>Cargando...</p>}
               {!cargandoDetalle && facturaDetalle && facturaDetalle.estado === 'AUTORIZADA' && emisor && (
-                <RideFactura factura={facturaDetalle} emisor={emisor} />
+                <>
+                  {facturaDetalle.anulada && (
+                    <div className={styles.anuladaBox}>
+                      Esta factura fue anulada por la nota credito{' '}
+                      <strong>{facturaDetalle.notaCreditoNumero}</strong>.
+                    </div>
+                  )}
+                  {!facturaDetalle.anulada && (
+                    <div className={styles.notaCreditoBar}>
+                      <BotonNotaCredito
+                        auth={auth}
+                        factura={facturaDetalle}
+                        onNotaCreditoEmitida={async () => {
+                          // Refresca el detalle para mostrar el badge Anulada
+                          const f = await getFactura(facturaDetalle.id);
+                          setFacturaDetalle(f);
+                        }}
+                      />
+                    </div>
+                  )}
+                  <RideFactura factura={facturaDetalle} emisor={emisor} />
+                </>
               )}
               {!cargandoDetalle && facturaDetalle && facturaDetalle.estado !== 'AUTORIZADA' && (
                 <div className={styles.rechazadaBox}>

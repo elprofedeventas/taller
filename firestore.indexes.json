@@ -56,6 +56,14 @@
         { "fieldPath": "workOrderId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notasCredito",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "facturaOriginalId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

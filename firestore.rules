@@ -329,6 +329,43 @@ service cloud.firestore {
     }
 
     // =========================================================
+    // NOTAS DE CREDITO (TALLER) - referencian una factura AUTORIZADA.
+    // Read libre. Create: recepcionista | manager | owner.
+    // Update: solo transiciones de estado (PENDIENTE -> AUTORIZADA o
+    // RECHAZADA), preserva campos inmutables clave.
+    // Delete bloqueado.
+    // =========================================================
+    match /notasCredito/{notaCreditoId} {
+      allow read: if true;
+
+      allow create: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && request.resource.data.keys().hasAll(
+                         ['estado', 'secuencial', 'estab', 'ptoEmi',
+                          'tipoDocumento', 'facturaOriginalId',
+                          'facturaOriginalNumero', 'facturaOriginalClave',
+                          'receptor', 'items', 'motivo',
+                          'createdAt', 'createdBy']
+                       )
+                    && hasServerTimestamp('createdAt');
+
+      allow update: if hasActor()
+                    && isValidActor(request.resource.data.actorId,
+                                    request.resource.data.actorRole)
+                    && hasRole(['recepcionista', 'manager', 'owner'])
+                    && preservesField('createdAt')
+                    && preservesField('createdBy')
+                    && preservesField('secuencial')
+                    && preservesField('estab')
+                    && preservesField('ptoEmi')
+                    && preservesField('facturaOriginalId');
+
+      allow delete: if false;
+    }
+
+    // =========================================================
     // COUNTERS - contadores transaccionales (secuencial de facturas).
     // Read libre. Write recepcionista | manager | owner (la atomicidad
     // se garantiza con runTransaction del lado cliente).

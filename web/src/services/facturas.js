@@ -42,11 +42,12 @@ export async function listFacturasByOT(workOrderId, limitN = 5) {
 }
 
 /**
- * Reserva el siguiente secuencial atomicamente. counters/facturas-EEE-PPP
- * contiene { ultimo: N }. Devuelve el numero como string de 9 digitos.
+ * Reserva el siguiente secuencial atomicamente. counterKey identifica el
+ * counter (ej. 'facturas-001-001', 'notasCredito-001-001'). El doc del
+ * counter contiene { ultimo: N }. Devuelve el numero como string de 9 digitos.
  */
-async function obtenerSecuencial(session, estab, ptoEmi) {
-  const ref = doc(db, 'counters', `facturas-${estab}-${ptoEmi}`);
+async function obtenerSecuencial(session, counterKey) {
+  const ref = doc(db, 'counters', counterKey);
   let num = 0;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
@@ -99,7 +100,7 @@ export async function emitirFactura(session, {
   const config = await getTallerConfig();
   validarConfig(config);
 
-  const secuencial = await obtenerSecuencial(session, config.estab, config.ptoEmi);
+  const secuencial = await obtenerSecuencial(session, `facturas-${config.estab}-${config.ptoEmi}`);
 
   const facturaRef = doc(facturasCollection());
   await setDoc(facturaRef, withActor(session, {
@@ -213,4 +214,231 @@ export async function emitirFactura(session, {
   }));
 
   return { id: facturaRef.id, ...data };
+}
+
+// ============================================================
+// Notas de credito
+// ============================================================
+
+const NOTAS_CREDITO_COLLECTION = 'notasCredito';
+
+function notasCreditoCollection() {
+  return collection(db, NOTAS_CREDITO_COLLECTION);
+}
+
+export async function getNotaCredito(id) {
+  const snap = await getDoc(doc(db, NOTAS_CREDITO_COLLECTION, id));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function listNotasCreditoByFactura(facturaOriginalId) {
+  if (!facturaOriginalId) return [];
+  const q = query(
+    notasCreditoCollection(),
+    where('facturaOriginalId', '==', facturaOriginalId),
+    orderBy('createdAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Convierte 'dd/mm/aaaa' a Date. Devuelve null si el formato es invalido.
+ */
+function parseFechaDdMmYyyy(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
+/**
+ * Plazo SRI para nota credito: hasta el dia 7 del mes siguiente a la
+ * emision de la factura, fin del dia (23:59:59 hora Ecuador).
+ */
+function plazoNotaCreditoLimite(fechaEmisionFactura) {
+  const f = parseFechaDdMmYyyy(fechaEmisionFactura);
+  if (!f) return null;
+  const año = f.getFullYear();
+  const mes = f.getMonth(); // 0-indexed
+  let nextYear = año, nextMonth = mes + 1;
+  if (nextMonth > 11) { nextYear++; nextMonth = 0; }
+  return new Date(nextYear, nextMonth, 7, 23, 59, 59);
+}
+
+/**
+ * Emite una nota de credito sobre una factura AUTORIZADA. Reutiliza
+ * config del taller (mismo .p12). El secuencial de notaCredito es
+ * independiente del de facturas (counter aparte).
+ */
+export async function emitirNotaCredito(session, {
+  facturaOriginalId,
+  razonModificacion,
+  motivo,
+  items,
+  descripcion = ''
+}) {
+  if (!facturaOriginalId) throw new Error('Falta facturaOriginalId.');
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error('Falta al menos un item para la nota credito.');
+  }
+  const motivoFinal = (motivo || razonModificacion || '').trim();
+  if (!motivoFinal) {
+    throw new Error('Falta el motivo de la nota credito.');
+  }
+
+  // 1. Cargar la factura original y validar
+  const factOrig = await getFactura(facturaOriginalId);
+  if (!factOrig) throw new Error('Factura original no encontrada.');
+  if (factOrig.estado !== 'AUTORIZADA') {
+    throw new Error('Solo se puede emitir nota credito de facturas autorizadas.');
+  }
+
+  // 2. Validar plazo: hasta dia 7 del mes siguiente a la emision
+  const limite = plazoNotaCreditoLimite(factOrig.fechaEmision);
+  if (limite && Date.now() > limite.getTime()) {
+    throw new Error(
+      `Plazo vencido. Solo se admiten notas credito hasta el ${limite.toLocaleDateString('es-EC')} ` +
+      '(dia 7 del mes siguiente a la emision de la factura).'
+    );
+  }
+
+  // 3. Cargar config del taller
+  const config = await getTallerConfig();
+  validarConfig(config);
+
+  // 4. Reservar secuencial de nota credito (counter independiente)
+  const secuencial = await obtenerSecuencial(
+    session,
+    `notasCredito-${config.estab}-${config.ptoEmi}`
+  );
+
+  // 5. Crear doc PENDIENTE en notasCredito/
+  const notaRef = doc(notasCreditoCollection());
+  await setDoc(notaRef, withActor(session, {
+    estado: 'PENDIENTE',
+    secuencial,
+    estab: config.estab,
+    ptoEmi: config.ptoEmi,
+    tipoDocumento: '04',
+    facturaOriginalId,
+    facturaOriginalNumero: factOrig.numeroFactura,
+    facturaOriginalClave: factOrig.claveAcceso,
+    facturaOriginalFecha: factOrig.fechaEmision,
+    receptor: factOrig.receptor,
+    razonModificacion: razonModificacion || '',
+    motivo: motivoFinal,
+    items,
+    descripcion: descripcion || '',
+    workOrderId: factOrig.workOrderId || null,
+    createdAt: serverTimestamp(),
+    createdBy: session.userId
+  }));
+
+  const emisorPayload = {
+    ruc: config.ruc,
+    razonSocial: config.razonSocial,
+    nombreComercial: config.nombreComercial || config.razonSocial,
+    dirMatriz: config.dirMatriz,
+    dirEstablecimiento: config.dirEstablecimiento || config.dirMatriz,
+    estab: config.estab,
+    ptoEmi: config.ptoEmi,
+    obligadoContabilidad: config.obligadoContabilidad || 'NO'
+  };
+
+  const infoAdicional = [];
+  if (descripcion && descripcion.trim()) {
+    infoAdicional.push({ nombre: 'Descripcion', valor: descripcion.trim() });
+  }
+
+  let data;
+  try {
+    const res = await fetch('/api/facturar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accion: 'notaCredito',
+        emisor: emisorPayload,
+        receptor: factOrig.receptor,
+        items,
+        secuencial,
+        motivo: motivoFinal,
+        facturaOriginalNumero: factOrig.numeroFactura,
+        facturaOriginalClave: factOrig.claveAcceso,
+        facturaOriginalFecha: factOrig.fechaEmision,
+        infoAdicional,
+        p12Encrypted: config.p12Encrypted,
+        p12Password: config.p12Password
+      })
+    });
+
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('application/json')) {
+      const raw = await res.text().catch(() => '');
+      const esLocal = typeof window !== 'undefined' && /^localhost|^127\./.test(window.location.hostname);
+      const hint = esLocal
+        ? ' En localhost, las Vercel Functions no corren con "npm run dev". Usa "vercel dev" desde web/.'
+        : '';
+      throw new Error(
+        `/api/facturar no respondio JSON (status ${res.status}).${hint} ` +
+        `Respuesta: ${raw.slice(0, 200)}`
+      );
+    }
+
+    data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      const errorSRI = {
+        error: data?.error || 'Error desconocido',
+        estado: data?.estado || null,
+        mensajes: Array.isArray(data?.mensajes) ? data.mensajes : [],
+        detalle: data?.detalle || null
+      };
+      await updateDoc(notaRef, withActor(session, {
+        estado: 'RECHAZADA',
+        errorSRI
+      }));
+      const err = new Error(data?.error || 'El SRI rechazo la nota credito.');
+      err.mensajes = errorSRI.mensajes;
+      err.detalle = errorSRI.detalle;
+      err.estado = errorSRI.estado;
+      throw err;
+    }
+  } catch (e) {
+    if (!data) {
+      await updateDoc(notaRef, withActor(session, {
+        estado: 'PENDIENTE',
+        errorSRI: 'Sin respuesta de /api/facturar: ' + e.message
+      }));
+    }
+    throw e;
+  }
+
+  // 6. Marcar nota como AUTORIZADA
+  await updateDoc(notaRef, withActor(session, {
+    estado: 'AUTORIZADA',
+    claveAcceso: data.claveAcceso,
+    numeroAutorizacion: data.numeroAutorizacion,
+    fechaAutorizacion: data.fechaAutorizacion,
+    fechaEmision: data.fechaEmision,
+    numeroNotaCredito: data.numeroNotaCredito,
+    totales: data.totales,
+    xmlFirmado: data.xmlFirmado,
+    autorizadoEn: serverTimestamp()
+  }));
+
+  // 7. Actualizar factura original con referencia a la nota credito
+  try {
+    await updateDoc(doc(db, COLLECTION, facturaOriginalId), withActor(session, {
+      notaCreditoId: notaRef.id,
+      notaCreditoNumero: data.numeroNotaCredito,
+      anulada: true
+    }));
+  } catch (_) {
+    // No bloqueante: la nota credito ya quedo autorizada en SRI.
+    // El vinculo a la factura se pierde silenciosamente si falla.
+  }
+
+  return { id: notaRef.id, ...data };
 }

@@ -16,7 +16,7 @@
 import crypto from 'crypto';
 import * as forgePkg from 'node-forge';
 import axios from 'axios';
-import { signInvoiceXml } from 'ec-sri-invoice-signer';
+import { signInvoiceXml, signCreditNoteXml } from 'ec-sri-invoice-signer';
 
 const forge = forgePkg.default || forgePkg;
 
@@ -205,6 +205,89 @@ function buildFacturaXml({
 }
 
 // ============================================================
+// Construccion del XML nota de credito version 1.1.0
+// Diferencias clave vs factura:
+//  - Root notaCredito v1.1.0 (no factura 2.1.0)
+//  - codDoc en infoTributaria es '04'
+//  - infoNotaCredito (en lugar de infoFactura) lleva los campos de
+//    referencia al documento modificado inline.
+//  - No hay <pagos>, no hay <propina>, no hay <importeTotal>.
+//    En su lugar <valorModificacion> (monto total con impuestos).
+//  - En <detalle> se usa <codigoInterno> (no <codigoPrincipal>).
+//  - Lleva <motivo> describiendo la razon de la modificacion.
+// ============================================================
+
+function buildNotaCreditoXml({
+  emisor,
+  receptor,
+  items,
+  secuencial,
+  fechaEmision,
+  claveAcceso,
+  ambiente,
+  facturaOriginal,  // { codDoc: '01', numero: '001-001-...', fechaEmision: 'dd/mm/aaaa' }
+  motivo,
+  infoAdicional = []
+}) {
+  const fecha = fechaEmision;
+
+  let totalSinImpuestos = 0;
+  let totalIva15 = 0;
+  let baseImponibleIva15 = 0;
+  let baseImponibleIva0 = 0;
+
+  const detallesXml = items.map(item => {
+    const cantidad = parseFloat(item.cantidad);
+    const precioUnitario = parseFloat(item.precioUnitario);
+    const descuento = parseFloat(item.descuento || 0);
+    const precioTotalSinImpuesto = parseFloat((cantidad * precioUnitario - descuento).toFixed(2));
+
+    totalSinImpuestos += precioTotalSinImpuesto;
+
+    let impuestoXml;
+    if (item.tieneIva) {
+      const valorIva = parseFloat((precioTotalSinImpuesto * 0.15).toFixed(2));
+      baseImponibleIva15 += precioTotalSinImpuesto;
+      totalIva15 += valorIva;
+      impuestoXml = `<impuesto><codigo>2</codigo><codigoPorcentaje>${IVA_15_PORCENTAJE}</codigoPorcentaje><tarifa>15.00</tarifa><baseImponible>${precioTotalSinImpuesto.toFixed(2)}</baseImponible><valor>${valorIva.toFixed(2)}</valor></impuesto>`;
+    } else {
+      baseImponibleIva0 += precioTotalSinImpuesto;
+      impuestoXml = `<impuesto><codigo>2</codigo><codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje><tarifa>0.00</tarifa><baseImponible>${precioTotalSinImpuesto.toFixed(2)}</baseImponible><valor>0.00</valor></impuesto>`;
+    }
+
+    // ¡codigoInterno! No codigoPrincipal como en factura.
+    return `<detalle><codigoInterno>${xmlEscape(item.codigo || '001')}</codigoInterno><descripcion>${xmlEscape(item.descripcion)}</descripcion><cantidad>${cantidad.toFixed(2)}</cantidad><precioUnitario>${precioUnitario.toFixed(2)}</precioUnitario><descuento>${descuento.toFixed(2)}</descuento><precioTotalSinImpuesto>${precioTotalSinImpuesto.toFixed(2)}</precioTotalSinImpuesto><impuestos>${impuestoXml}</impuestos></detalle>`;
+  }).join('');
+
+  const valorModificacion = parseFloat((totalSinImpuestos + totalIva15).toFixed(2));
+
+  let totalConImpuestosXml = '';
+  if (baseImponibleIva15 > 0) {
+    totalConImpuestosXml += `<totalImpuesto><codigo>2</codigo><codigoPorcentaje>${IVA_15_PORCENTAJE}</codigoPorcentaje><baseImponible>${baseImponibleIva15.toFixed(2)}</baseImponible><valor>${totalIva15.toFixed(2)}</valor></totalImpuesto>`;
+  }
+  if (baseImponibleIva0 > 0) {
+    totalConImpuestosXml += `<totalImpuesto><codigo>2</codigo><codigoPorcentaje>${IVA_0_PORCENTAJE}</codigoPorcentaje><baseImponible>${baseImponibleIva0.toFixed(2)}</baseImponible><valor>0.00</valor></totalImpuesto>`;
+  }
+
+  const camposValidos = (infoAdicional || [])
+    .filter(c => c && c.nombre && String(c.valor || '').trim());
+  const infoAdicionalXml = camposValidos.length
+    ? `<infoAdicional>${camposValidos.map(c =>
+        `<campoAdicional nombre="${xmlEscape(c.nombre)}">${xmlEscape(c.valor)}</campoAdicional>`
+      ).join('')}</infoAdicional>`
+    : '';
+
+  const subtree = `<notaCredito id="comprobante" version="1.1.0"><infoTributaria><ambiente>${ambiente}</ambiente><tipoEmision>1</tipoEmision><razonSocial>${xmlEscape(emisor.razonSocial)}</razonSocial><nombreComercial>${xmlEscape(emisor.nombreComercial || emisor.razonSocial)}</nombreComercial><ruc>${emisor.ruc}</ruc><claveAcceso>${claveAcceso}</claveAcceso><codDoc>04</codDoc><estab>${emisor.estab}</estab><ptoEmi>${emisor.ptoEmi}</ptoEmi><secuencial>${secuencial}</secuencial><dirMatriz>${xmlEscape(emisor.dirMatriz)}</dirMatriz></infoTributaria><infoNotaCredito><fechaEmision>${fecha}</fechaEmision><dirEstablecimiento>${xmlEscape(emisor.dirEstablecimiento || emisor.dirMatriz)}</dirEstablecimiento><tipoIdentificacionComprador>${receptor.tipoId || '05'}</tipoIdentificacionComprador><razonSocialComprador>${xmlEscape(receptor.razonSocial)}</razonSocialComprador><identificacionComprador>${receptor.identificacion}</identificacionComprador><obligadoContabilidad>${emisor.obligadoContabilidad || 'NO'}</obligadoContabilidad><codDocModificado>${facturaOriginal.codDoc || '01'}</codDocModificado><numDocModificado>${facturaOriginal.numero}</numDocModificado><fechaEmisionDocSustento>${facturaOriginal.fechaEmision}</fechaEmisionDocSustento><totalSinImpuestos>${totalSinImpuestos.toFixed(2)}</totalSinImpuestos><valorModificacion>${valorModificacion.toFixed(2)}</valorModificacion><moneda>DOLAR</moneda><totalConImpuestos>${totalConImpuestosXml}</totalConImpuestos><motivo>${xmlEscape(motivo || 'Modificacion de comprobante')}</motivo></infoNotaCredito><detalles>${detallesXml}</detalles>${infoAdicionalXml}</notaCredito>`;
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n${subtree}`;
+
+  return {
+    xml,
+    totales: { totalSinImpuestos, valorModificacion }
+  };
+}
+
+// ============================================================
 // Firma XAdES-BES delegada a ec-sri-invoice-signer (signInvoiceXml).
 // La libreria recibe el XML de la factura + el buffer del .p12 + la
 // password y devuelve el XML firmado listo para enviar al SRI.
@@ -314,7 +397,10 @@ export default async function handler(req, res) {
   const {
     emisor, receptor, items, secuencial, formaPago, fechaEmision,
     p12Encrypted, p12Password, accion, claveAcceso, p12Base64,
-    infoAdicional
+    infoAdicional,
+    // Nota credito:
+    facturaOriginalNumero, facturaOriginalClave, facturaOriginalFecha,
+    motivo
   } = req.body;
 
   try {
@@ -348,6 +434,113 @@ export default async function handler(req, res) {
       const xmlResp = await postSoap(process.env.SRI_AUTHORIZATION_URL, soapBody);
       const parsed = parseAutorizacionResponse(typeof xmlResp === 'string' ? xmlResp : String(xmlResp));
       return res.status(200).json({ autorizacion: parsed });
+    }
+
+    // === ACCION: notaCredito ===
+    if (accion === 'notaCredito') {
+      if (!emisor || !receptor || !items?.length || !secuencial || !p12Encrypted || !p12Password) {
+        return res.status(400).json({
+          error: 'Faltan campos: emisor, receptor, items, secuencial, p12Encrypted, p12Password'
+        });
+      }
+      if (!facturaOriginalNumero || !facturaOriginalFecha) {
+        return res.status(400).json({
+          error: 'Faltan datos de la factura original (facturaOriginalNumero, facturaOriginalFecha)'
+        });
+      }
+      if (!motivo) {
+        return res.status(400).json({ error: 'Falta motivo de la nota credito' });
+      }
+
+      const ambiente = process.env.SRI_AMBIENTE || '1';
+      const fecha = fechaEmision || (() => {
+        const fmt = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Guayaquil',
+          year: 'numeric', month: '2-digit', day: '2-digit'
+        });
+        const parts = fmt.format(new Date()).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      })();
+      const codigoNumerico = String(Math.floor(Math.random() * 100000000)).padStart(8, '0');
+
+      // Clave de acceso para nota credito: tipoComprobante '04'
+      const claveAccesoNC = generarClaveAcceso({
+        fechaEmision: fecha,
+        tipoComprobante: '04',
+        ruc: emisor.ruc,
+        ambiente,
+        estab: emisor.estab,
+        ptoEmi: emisor.ptoEmi,
+        secuencial,
+        codigoNumerico,
+        tipoEmision: '1'
+      });
+
+      const { xml: ncXml, totales: totNC } = buildNotaCreditoXml({
+        emisor, receptor, items, secuencial,
+        fechaEmision: fecha, claveAcceso: claveAccesoNC, ambiente,
+        facturaOriginal: {
+          codDoc: '01',
+          numero: facturaOriginalNumero,
+          fechaEmision: facturaOriginalFecha
+        },
+        motivo, infoAdicional
+      });
+
+      const p12BufNC = decryptP12(p12Encrypted);
+      const xmlFirmadoNC = signCreditNoteXml(ncXml, p12BufNC, {
+        pkcs12Password: p12Password
+      });
+
+      const soapRecNC = buildSoapRecepcion(xmlFirmadoNC);
+      const xmlRecNCRaw = await postSoap(process.env.SRI_RECEPTION_URL, soapRecNC);
+      const xmlRecNC = typeof xmlRecNCRaw === 'string' ? xmlRecNCRaw : String(xmlRecNCRaw);
+      const respRecNC = parseRecepcionResponse(xmlRecNC);
+
+      if (respRecNC.estado !== 'RECIBIDA') {
+        return res.status(422).json({
+          error: 'SRI rechazo la nota credito en recepcion',
+          estado: respRecNC.estado,
+          mensajes: respRecNC.mensajes,
+          detalle: respRecNC.raw.slice(0, 12000),
+          claveAcceso: claveAccesoNC
+        });
+      }
+
+      await new Promise(r => setTimeout(r, 2000));
+      const soapAutNC = buildSoapAutorizacion(claveAccesoNC);
+      const xmlAutNCRaw = await postSoap(process.env.SRI_AUTHORIZATION_URL, soapAutNC);
+      const xmlAutNC = typeof xmlAutNCRaw === 'string' ? xmlAutNCRaw : String(xmlAutNCRaw);
+      const respAutNC = parseAutorizacionResponse(xmlAutNC);
+
+      if (respAutNC.estado !== 'AUTORIZADO') {
+        const mensajesBlock = respAutNC.raw.match(/<mensajes>[\s\S]*?<\/mensajes>/);
+        const detalleFocused = mensajesBlock ? mensajesBlock[0] : respAutNC.raw.slice(0, 12000);
+        return res.status(422).json({
+          error: `SRI estado: ${respAutNC.estado}`,
+          mensajes: respAutNC.mensajes,
+          detalle: detalleFocused,
+          claveAcceso: claveAccesoNC,
+          estado: respAutNC.estado
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        claveAcceso: claveAccesoNC,
+        numeroAutorizacion: respAutNC.numeroAutorizacion,
+        fechaAutorizacion: respAutNC.fechaAutorizacion,
+        estado: 'AUTORIZADO',
+        numeroNotaCredito: `${emisor.estab}-${emisor.ptoEmi}-${secuencial}`,
+        totales: {
+          subtotal: totNC.totalSinImpuestos.toFixed(2),
+          total: totNC.valorModificacion.toFixed(2)
+        },
+        items, receptor,
+        fechaEmision: fecha,
+        motivo,
+        xmlFirmado: xmlFirmadoNC
+      });
     }
 
     // === ACCION: facturar ===

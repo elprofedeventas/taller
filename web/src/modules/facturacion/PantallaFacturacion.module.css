@@ -123,6 +123,33 @@
   color: var(--text-primary);
 }
 
+.anuladaBadge {
+  font-size: 10px;
+  font-weight: 600;
+  background: #FEE2E2;
+  color: #991B1B;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.anuladaBox {
+  background: #FEE2E2;
+  border: 1px solid var(--danger);
+  color: #991B1B;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.notaCreditoBar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
 .loadMore {
   align-self: center;
   background: transparent;
