@@ -11,7 +11,7 @@
 
 import { db } from './firestore';
 import { withActor } from './auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore';
 
 const TALLER_DOC_PATH = ['config', 'taller'];
 
@@ -74,4 +74,28 @@ export async function setTallerCertificate(session, {
   });
 
   await setDoc(tallerDocRef(), data, { merge: true });
+}
+
+/**
+ * Elimina los campos del certificado .p12 del doc config/taller usando
+ * deleteField() para que desaparezcan de verdad (no queden como null).
+ * El resto del doc (datos SRI, name, address, etc.) se mantiene intacto.
+ * Util para limpiar el .p12 al terminar una demo.
+ */
+export async function borrarTallerCertificado(session) {
+  if (session.role !== 'owner') {
+    throw new Error('Solo el owner puede borrar el certificado');
+  }
+
+  const data = withActor(session, {
+    p12Encrypted: deleteField(),
+    p12Password: deleteField(),
+    p12Nombre: deleteField(),
+    p12FechaExpiracion: deleteField(),
+    p12ConfiguradoEn: deleteField(),
+    p12ConfiguradoPor: deleteField(),
+    modificadoEn: serverTimestamp()
+  });
+
+  await updateDoc(tallerDocRef(), data);
 }

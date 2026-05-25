@@ -278,3 +278,38 @@
   color: var(--primary);
   text-decoration: underline;
 }
+
+.borrarRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.btnDanger {
+  background: var(--bg-surface);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #FEE2E2;
+}
+
+.btnDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.borrarHint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}

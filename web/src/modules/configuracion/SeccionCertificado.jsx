@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getTallerConfig, setTallerCertificate } from '../../services/config';
+import {
+  getTallerConfig, setTallerCertificate, borrarTallerCertificado
+} from '../../services/config';
 import styles from './SeccionCertificado.module.css';
 
 function fileToBase64(file) {
@@ -35,23 +37,58 @@ export default function SeccionCertificado({ auth }) {
   const [fase, setFase] = useState('idle');
   const [errorMsg, setErrorMsg] = useState(null);
   const [exito, setExito] = useState(null);
+  const [borrando, setBorrando] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    getTallerConfig().then(c => {
-      if (cancelled) return;
+  async function recargarCert() {
+    try {
+      const c = await getTallerConfig();
       if (c && c.p12Encrypted) {
         setCertActual({
           nombre: c.p12Nombre || 'certificado.p12',
           fechaExpiracion: c.p12FechaExpiracion || null,
           configuradoEn: c.p12ConfiguradoEn || null
         });
+      } else {
+        setCertActual(null);
       }
-    }).catch(() => {}).finally(() => {
+    } catch (_) {
+      // silencio: si falla el read dejamos el estado anterior
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await recargarCert();
       if (!cancelled) setCargando(false);
-    });
+    })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function handleBorrar() {
+    const ok = window.confirm(
+      'Vas a borrar el certificado .p12 y su contrasena del taller. ' +
+      'No vas a poder emitir facturas hasta cargar uno nuevo. ' +
+      'Los datos SRI (RUC, razon social, etc.) se mantienen. ' +
+      'Continuar?'
+    );
+    if (!ok) return;
+    setBorrando(true);
+    setErrorMsg(null);
+    setExito(null);
+    try {
+      await borrarTallerCertificado(auth.session);
+      await recargarCert();
+      setExito('Certificado y contrasena eliminados.');
+      // Limpia el mensaje de exito a los 3 segundos.
+      setTimeout(() => setExito(null), 3000);
+    } catch (e) {
+      setErrorMsg(e.message);
+    } finally {
+      setBorrando(false);
+    }
+  }
 
   if (auth.role !== 'owner') return null;
 
@@ -174,6 +211,22 @@ export default function SeccionCertificado({ auth }) {
               <span>Certificado configurado.</span>
             )}
           </div>
+        </div>
+      )}
+
+      {certActual && (
+        <div className={styles.borrarRow}>
+          <button
+            type="button"
+            className={styles.btnDanger}
+            onClick={handleBorrar}
+            disabled={borrando}
+          >
+            {borrando ? 'Borrando...' : '🗑️ Borrar certificado y contrasena'}
+          </button>
+          <span className={styles.borrarHint}>
+            Util para limpiar el .p12 al terminar una demo. Los datos SRI se mantienen.
+          </span>
         </div>
       )}
 
